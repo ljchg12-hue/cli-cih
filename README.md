@@ -259,18 +259,59 @@ $ cih history export abc123 --format md > conversation.md
 
 CLI-CIH provides an MCP (Model Context Protocol) server for integration with Claude Desktop and other MCP-compatible applications.
 
-### Available Tools
+### Available Tools (17 total)
 
-| Tool | Description |
-|------|-------------|
-| `cih_discuss` | Start multi-AI discussion on a topic |
-| `cih_ask` | Quick question to a specific AI |
-| `cih_status` | Check AI availability status |
-| `cih_history` | Search conversation history |
+| Tool | Category | Description |
+|------|----------|-------------|
+| `cih_quick` | Core | Quick single AI response |
+| `cih_analyze` | Core | Analyze prompt for optimal routing |
+| `cih_discuss` | Core | Multi-AI discussion with synthesis |
+| `cih_compare` | Core | Compare responses from multiple AIs |
+| `cih_smart` | Core | Smart routing based on task type |
+| `cih_status` | Core | Check AI availability |
+| `cih_history` | History | Query conversation history |
+| `cih_history_detail` | History | Get session details |
+| `cih_models` | Info | List available AI models |
+| `cih_stats` | Info | Usage statistics |
+| `cih_gateway_status` | Gateway | Docker Gateway connection status |
+| `cih_gateway_find` | Gateway | Search MCP servers |
+| `cih_gateway_tools` | Gateway | List server tools |
+| `cih_gateway_exec` | Gateway | Execute MCP tool |
+| `cih_gateway_multi_exec` | Gateway | Execute multiple tools in parallel |
+
+### Response Format
+
+All tools return a standardized response:
+
+```json
+{
+  "success": true,
+  "data": { "response": "..." },
+  "error": null,
+  "metadata": { "duration_ms": 150, "ai_used": ["claude"] }
+}
+```
 
 ### Configuration (Claude Desktop)
 
 Add to `~/.config/claude-desktop/config.json`:
+
+```json
+{
+  "mcpServers": {
+    "cli-cih": {
+      "command": "python",
+      "args": ["-m", "cli_cih.mcp"],
+      "env": {
+        "DOCKER_GATEWAY_URL": "http://localhost:8811",
+        "DOCKER_GATEWAY_ENABLED": "true"
+      }
+    }
+  }
+}
+```
+
+### Using with uv
 
 ```json
 {
@@ -282,6 +323,10 @@ Add to `~/.config/claude-desktop/config.json`:
   }
 }
 ```
+
+### Documentation
+
+See [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) for complete tool documentation.
 
 ## Development
 
