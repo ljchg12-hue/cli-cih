@@ -1,0 +1,57 @@
+# CLI-CIH Default Configuration
+# Copy this to ~/.config/cli-cih/config.yaml to customize
+
+version: "1.0.0"
+
+# Default AI to use when none specified
+default_ai: claude
+
+# Collaboration mode: free_discussion, round_robin, expert_panel
+collaboration_mode: free_discussion
+
+# Maximum conversation rounds
+max_rounds: 7
+
+# AI Configurations
+ais:
+  claude:
+    name: claude
+    enabled: true
+    color: bright_blue
+    endpoint: cli
+    timeout: 60
+    max_tokens: 4096
+
+  codex:
+    name: codex
+    enabled: true
+    color: bright_green
+    endpoint: cli
+    timeout: 60
+    max_tokens: 4096
+
+  gemini:
+    name: gemini
+    enabled: true
+    color: bright_yellow
+    endpoint: cli
+    timeout: 60
+    max_tokens: 4096
+
+  ollama:
+    name: ollama
+    enabled: true
+    color: bright_magenta
+    endpoint: http://localhost:11434
+    model: llama3.1:70b
+    timeout: 120
+    max_tokens: 4096
+
+# UI Settings
+show_thinking: true
+show_timestamps: false
+compact_mode: false
+
+# History Settings
+save_history: true
+max_history_items: 1000

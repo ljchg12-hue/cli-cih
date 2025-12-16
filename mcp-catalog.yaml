@@ -1,0 +1,165 @@
+# CLI-CIH MCP Server Catalog
+# Docker MCP Gateway 등록용
+
+cli-cih:
+  name: cli-cih
+  title: "CLI-CIH Multi-AI Orchestrator"
+  description: "Multi-AI Discussion Orchestrator - 여러 AI를 조율하여 최적의 답변 도출"
+  version: "1.0.0"
+  author: "CLI-CIH Team"
+  license: "MIT"
+
+  # Docker 이미지 설정
+  image: cli-cih:latest
+  build:
+    context: /home/leejc5147/cli-cih
+    dockerfile: Dockerfile
+
+  # 실행 설정 (로컬 모드)
+  command: /home/leejc5147/cli-cih/.venv/bin/python
+  args:
+    - "-m"
+    - "cli_cih.mcp.server"
+
+  # 환경 변수
+  env:
+    DOCKER_GATEWAY_URL: "http://localhost:8811"
+    DOCKER_GATEWAY_ENABLED: "true"
+
+  # MCP 도구 정의
+  tools:
+    # === 기본 AI 도구 ===
+    - name: cih_quick
+      description: "빠른 단일 AI 응답 (간단한 질문용)"
+      parameters:
+        prompt:
+          type: string
+          required: true
+          description: "사용자 질문"
+
+    - name: cih_analyze
+      description: "작업 분석 - 프롬프트를 분석하여 최적의 AI 조합 추천"
+      parameters:
+        prompt:
+          type: string
+          required: true
+          description: "분석할 사용자 질문"
+
+    - name: cih_discuss
+      description: "멀티 AI 토론 - 여러 AI의 의견을 수집하고 종합"
+      parameters:
+        prompt:
+          type: string
+          required: true
+          description: "토론 주제/질문"
+        ais:
+          type: array
+          required: false
+          description: "참여할 AI 목록"
+        max_rounds:
+          type: integer
+          required: false
+          default: 2
+          description: "최대 토론 라운드"
+        include_synthesis:
+          type: boolean
+          required: false
+          default: true
+          description: "종합 결과 포함 여부"
+
+    - name: cih_compare
+      description: "AI 응답 비교 - 동일 질문에 대한 여러 AI 응답을 나란히 비교"
+      parameters:
+        prompt:
+          type: string
+          required: true
+          description: "비교할 질문"
+        ais:
+          type: array
+          required: false
+          default: ["claude", "codex", "gemini"]
+          description: "비교할 AI 목록"
+
+    - name: cih_status
+      description: "CLI-CIH 상태 확인 - 사용 가능한 AI와 연결 상태"
+      parameters: {}
+
+    - name: cih_smart
+      description: "스마트 라우팅 - 작업 유형에 따라 최적 AI 자동 선택"
+      parameters:
+        prompt:
+          type: string
+          required: true
+          description: "사용자 질문"
+        task_type:
+          type: string
+          required: false
+          enum: ["code", "debug", "design", "research", "explain", "general"]
+          description: "작업 유형 (생략시 자동 분석)"
+
+    # === Docker Gateway 연동 도구 ===
+    - name: cih_gateway_status
+      description: "Docker MCP Gateway 상태 확인"
+      parameters: {}
+
+    - name: cih_gateway_find
+      description: "Docker Gateway에서 MCP 서버 검색"
+      parameters:
+        query:
+          type: string
+          required: true
+          description: "검색어 (서버 이름, 설명)"
+        limit:
+          type: integer
+          required: false
+          default: 10
+          description: "최대 결과 수"
+
+    - name: cih_gateway_tools
+      description: "Docker Gateway 서버의 도구 목록 조회"
+      parameters:
+        server:
+          type: string
+          required: true
+          description: "MCP 서버 이름"
+
+    - name: cih_gateway_exec
+      description: "Docker Gateway를 통해 MCP 도구 실행"
+      parameters:
+        server:
+          type: string
+          required: true
+          description: "MCP 서버 이름"
+        tool:
+          type: string
+          required: true
+          description: "도구 이름"
+        arguments:
+          type: object
+          required: false
+          description: "도구 인자"
+
+    - name: cih_gateway_multi_exec
+      description: "Docker Gateway를 통해 여러 MCP 도구 병렬 실행"
+      parameters:
+        calls:
+          type: array
+          required: true
+          description: "호출 목록 [{server, tool, arguments}, ...]"
+
+  # 카테고리
+  categories:
+    - ai
+    - orchestration
+    - multi-agent
+    - discussion
+
+  # 태그
+  tags:
+    - claude
+    - codex
+    - gemini
+    - ollama
+    - multi-ai
+    - discussion
+    - korean

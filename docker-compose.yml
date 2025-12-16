@@ -1,0 +1,76 @@
+# CLI-CIH Docker Compose Configuration
+# Docker MCP Gateway와 함께 사용
+
+version: "3.8"
+
+services:
+  cli-cih:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cli-cih-mcp
+    image: cli-cih:latest
+    restart: unless-stopped
+
+    # Docker Gateway 연결
+    environment:
+      - DOCKER_GATEWAY_URL=http://mcp-gateway:8811
+      - DOCKER_GATEWAY_ENABLED=true
+      - PYTHONUNBUFFERED=1
+
+    # stdio 모드로 실행 (MCP 표준)
+    stdin_open: true
+    tty: true
+
+    # Docker Gateway 네트워크 연결
+    networks:
+      - mcp-network
+
+    # 호스트 CLI 도구 접근 (선택적)
+    volumes:
+      - /home/leejc5147/.local/bin:/host-bin:ro
+      - /tmp:/tmp
+
+    # 리소스 제한
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  # HTTP 프록시 모드 (선택적 - SSE 연결용)
+  cli-cih-http:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cli-cih-http
+    image: cli-cih:latest
+    restart: unless-stopped
+    profiles:
+      - http  # docker compose --profile http up 으로 활성화
+
+    environment:
+      - DOCKER_GATEWAY_URL=http://mcp-gateway:8811
+      - DOCKER_GATEWAY_ENABLED=true
+      - MCP_HTTP_MODE=true
+      - MCP_HTTP_PORT=8000
+
+    ports:
+      - "8812:8000"
+
+    networks:
+      - mcp-network
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  mcp-network:
+    external: true
+    name: mcp-gateway_default  # Docker MCP Gateway 네트워크
