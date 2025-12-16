@@ -1,15 +1,11 @@
 """CLI commands for CLI-CIH."""
 
 import asyncio
-from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 import typer
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.text import Text
 
 from cli_cih.ui.renderer import get_console
 
@@ -54,7 +50,9 @@ async def _show_history_list(limit: int = 10) -> None:
         date_str = session.created_at.strftime("%Y-%m-%d %H:%M")
 
         # Query preview
-        query = session.user_query[:37] + "..." if len(session.user_query) > 40 else session.user_query
+        query = (
+            session.user_query[:37] + "..." if len(session.user_query) > 40 else session.user_query
+        )
 
         # AIs
         ais = ", ".join(session.participating_ais[:3])
@@ -131,7 +129,9 @@ async def cmd_models_status() -> None:
     for adapter in adapters:
         health = await adapter.health_check()
         status_icon = "✅" if health["available"] else "❌"
-        status_text = f"[green]Available[/green]" if health["available"] else "[red]Unavailable[/red]"
+        status_text = (
+            "[green]Available[/green]" if health["available"] else "[red]Unavailable[/red]"
+        )
         version = health.get("version", "N/A")
 
         table.add_row(
@@ -212,7 +212,9 @@ def models_list() -> None:
 
 @models_app.command("test")
 def models_test(
-    ai_name: str = typer.Argument(..., help="AI adapter name to test (claude, codex, gemini, ollama)"),
+    ai_name: str = typer.Argument(
+        ..., help="AI adapter name to test (claude, codex, gemini, ollama)"
+    ),
 ) -> None:
     """Test connection to a specific AI adapter."""
     from cli_cih.adapters import AdapterError, get_adapter
@@ -223,7 +225,7 @@ def models_test(
         adapter = get_adapter(ai_name)
     except ValueError as e:
         console.print(f"[red]Error: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     async def run_test():
         # Check availability
@@ -239,7 +241,7 @@ def models_test(
         console.print(f"[dim]Version: {version}[/dim]")
 
         # Quick test query
-        console.print(f"\n[dim]Sending test query...[/dim]")
+        console.print("\n[dim]Sending test query...[/dim]")
         try:
             response_chunks = []
             async for chunk in adapter.send("Say 'Hello from CLI-CIH!' in exactly those words."):
@@ -250,7 +252,7 @@ def models_test(
 
             response = "".join(response_chunks)
             console.print(f"[{adapter.color}]{response.strip()}[/{adapter.color}]")
-            console.print(f"\n[green]✅ Test passed![/green]")
+            console.print("\n[green]✅ Test passed![/green]")
             return True
 
         except AdapterError as e:
@@ -324,11 +326,13 @@ async def _show_session_detail(session_id: str) -> None:
 
     # Display session details
     console.print()
-    console.print(Panel(
-        f"[bold]{session.user_query}[/bold]",
-        title="[cyan]Question[/cyan]",
-        border_style="cyan",
-    ))
+    console.print(
+        Panel(
+            f"[bold]{session.user_query}[/bold]",
+            title="[cyan]Question[/cyan]",
+            border_style="cyan",
+        )
+    )
 
     console.print()
     console.print(f"[dim]ID:[/dim] {session.id}")
@@ -350,9 +354,18 @@ async def _show_session_detail(session_id: str) -> None:
                 console.print(f"[dim]--- Round {current_round} ---[/dim]")
 
             if msg.sender_type.value == "ai":
-                ai_colors = {"claude": "blue", "gemini": "yellow", "codex": "green", "ollama": "magenta"}
+                ai_colors = {
+                    "claude": "blue",
+                    "gemini": "yellow",
+                    "codex": "green",
+                    "ollama": "magenta",
+                }
                 color = ai_colors.get(msg.sender_id.lower(), "white")
-                console.print(f"[{color}][{msg.sender_id.upper()}][/{color}] {msg.content[:200]}{'...' if len(msg.content) > 200 else ''}")
+                truncated = msg.content[:200]
+                ellipsis = "..." if len(msg.content) > 200 else ""
+                console.print(
+                    f"[{color}][{msg.sender_id.upper()}][/{color}] {truncated}{ellipsis}"
+                )
             elif msg.sender_type.value == "user":
                 console.print(f"[bold][USER][/bold] {msg.content}")
             else:
@@ -362,11 +375,13 @@ async def _show_session_detail(session_id: str) -> None:
 
     # Display result
     if session.result:
-        console.print(Panel(
-            session.result.summary,
-            title="[green]Result[/green]",
-            border_style="green",
-        ))
+        console.print(
+            Panel(
+                session.result.summary,
+                title="[green]Result[/green]",
+                border_style="green",
+            )
+        )
 
         if session.result.key_points:
             console.print()
@@ -408,7 +423,9 @@ async def _search_history(query: str, limit: int) -> None:
     for session in sessions:
         short_id = session.id[:8]
         date_str = session.created_at.strftime("%Y-%m-%d %H:%M")
-        query_text = session.user_query[:47] + "..." if len(session.user_query) > 50 else session.user_query
+        query_text = (
+            session.user_query[:47] + "..." if len(session.user_query) > 50 else session.user_query
+        )
 
         status_colors = {
             "completed": "green",
@@ -429,13 +446,13 @@ async def _search_history(query: str, limit: int) -> None:
 def history_export(
     session_id: str = typer.Argument(..., help="Session ID to export"),
     format: str = typer.Option("md", "--format", "-f", help="Export format (md, json, txt)"),
-    output: Optional[str] = typer.Option(None, "--output", "-o", help="Output file path"),
+    output: str | None = typer.Option(None, "--output", "-o", help="Output file path"),
 ) -> None:
     """Export a conversation session."""
     asyncio.run(_export_session(session_id, format, output))
 
 
-async def _export_session(session_id: str, format: str, output: Optional[str]) -> None:
+async def _export_session(session_id: str, format: str, output: str | None) -> None:
     """Export session."""
     from cli_cih.storage import get_history_storage
 
@@ -490,9 +507,9 @@ async def _show_history_stats() -> None:
     console.print(f"Total messages: {stats['total_messages']}")
     console.print(f"Database: {stats['db_path']}")
 
-    if stats['ai_usage']:
+    if stats["ai_usage"]:
         console.print("\n[bold]AI Usage:[/bold]")
-        for ai, count in sorted(stats['ai_usage'].items(), key=lambda x: -x[1]):
+        for ai, count in sorted(stats["ai_usage"].items(), key=lambda x: -x[1]):
             console.print(f"  {ai}: {count} sessions")
 
     console.print()

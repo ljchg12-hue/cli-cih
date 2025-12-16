@@ -1,7 +1,6 @@
 """Configuration storage and management for CLI-CIH."""
 
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from pydantic import ValidationError
@@ -16,14 +15,14 @@ DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.yaml"
 class ConfigStorage:
     """Configuration storage manager."""
 
-    def __init__(self, config_path: Optional[Path] = None):
+    def __init__(self, config_path: Path | None = None):
         """Initialize config storage.
 
         Args:
             config_path: Custom config file path.
         """
         self.config_path = config_path or DEFAULT_CONFIG_FILE
-        self._config: Optional[Config] = None
+        self._config: Config | None = None
 
     def ensure_config_dir(self) -> None:
         """Ensure config directory exists."""
@@ -51,7 +50,7 @@ class ConfigStorage:
 
         return self._config
 
-    def save(self, config: Optional[Config] = None) -> None:
+    def save(self, config: Config | None = None) -> None:
         """Save configuration to file.
 
         Args:
@@ -85,7 +84,7 @@ class ConfigStorage:
 
 
 # Global config storage instance
-_storage: Optional[ConfigStorage] = None
+_storage: ConfigStorage | None = None
 
 
 def get_storage() -> ConfigStorage:

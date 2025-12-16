@@ -1,7 +1,7 @@
 """Gemini CLI adapter for CLI-CIH."""
 
 import asyncio
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 import pexpect
 from pexpect import EOF, TIMEOUT
@@ -26,22 +26,22 @@ class GeminiAdapter(AIAdapter):
 
     # Patterns to filter from stderr/output
     SKIP_PATTERNS = [
-        '[ERROR]',
-        '[STARTUP]',
-        'YOLO mode',
-        'Loaded cached',
-        'Recording metric',
-        'StartupProfiler',
-        'ImportProcessor',
-        'duration:',
-        'phase:',
-        'Initializing',
-        'Loading model',
-        'Warning:',
-        'Deprecation',
+        "[ERROR]",
+        "[STARTUP]",
+        "YOLO mode",
+        "Loaded cached",
+        "Recording metric",
+        "StartupProfiler",
+        "ImportProcessor",
+        "duration:",
+        "phase:",
+        "Initializing",
+        "Loading model",
+        "Warning:",
+        "Deprecation",
     ]
 
-    def __init__(self, config: Optional[AdapterConfig] = None):
+    def __init__(self, config: AdapterConfig | None = None):
         """Initialize Gemini adapter."""
         super().__init__(config)
         self._command = "gemini"
@@ -92,7 +92,9 @@ class GeminiAdapter(AIAdapter):
             Response chunks as they arrive.
         """
         if not await self.is_available():
-            raise AdapterError("Gemini CLI를 사용할 수 없습니다. 설치: npm install -g @google/gemini-cli")
+            raise AdapterError(
+                "Gemini CLI를 사용할 수 없습니다. 설치: npm install -g @google/gemini-cli"
+            )
 
         command = await self._get_active_command()
         args = [prompt]
@@ -130,9 +132,11 @@ class GeminiAdapter(AIAdapter):
                 yield "[Gemini 응답 없음]"
 
         except pexpect.ExceptionPexpect as e:
-            raise AdapterError(f"Gemini CLI 오류: {e}")
-        except asyncio.TimeoutError:
-            raise AdapterTimeoutError(f"Gemini CLI 응답 시간 초과 ({self.config.timeout}초)")
+            raise AdapterError(f"Gemini CLI 오류: {e}") from e
+        except asyncio.TimeoutError as err:
+            raise AdapterTimeoutError(
+                f"Gemini CLI 응답 시간 초과 ({self.config.timeout}초)"
+            ) from err
 
     def _should_skip(self, text: str) -> bool:
         """Check if text should be filtered out.

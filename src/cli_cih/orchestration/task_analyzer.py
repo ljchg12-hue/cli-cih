@@ -3,7 +3,6 @@
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional
 
 
 class TaskType(str, Enum):
@@ -65,20 +64,65 @@ class TaskAnalyzer:
     # Simple chat patterns (greetings, short responses) - EXPANDED
     SIMPLE_PATTERNS = [
         # 인사
-        '안녕', '하이', 'hi', 'hello', '헬로', '방가', '반가',
-        '안녕하세요', 'good morning', 'good night', '잘자',
+        "안녕",
+        "하이",
+        "hi",
+        "hello",
+        "헬로",
+        "방가",
+        "반가",
+        "안녕하세요",
+        "good morning",
+        "good night",
+        "잘자",
         # 감사
-        '고마워', '감사', 'thx', 'thanks', 'thank you', 'thank',
+        "고마워",
+        "감사",
+        "thx",
+        "thanks",
+        "thank you",
+        "thank",
         # 긍정/부정
-        '응', '네', '예', '아니', '노', 'ok', 'okay', 'yes', 'no', 'sure',
-        'ㅇㅇ', 'ㄴㄴ', '그래', '알겠어',
+        "응",
+        "네",
+        "예",
+        "아니",
+        "노",
+        "ok",
+        "okay",
+        "yes",
+        "no",
+        "sure",
+        "ㅇㅇ",
+        "ㄴㄴ",
+        "그래",
+        "알겠어",
         # 이모티콘/감탄사
-        'ㅎㅎ', 'ㅋㅋ', 'ㅠㅠ', 'ㅜㅜ', 'ㅎ', 'ㅋ', 'ㅠ', 'ㅜ',
-        '오', '와', '헐', '대박',
+        "ㅎㅎ",
+        "ㅋㅋ",
+        "ㅠㅠ",
+        "ㅜㅜ",
+        "ㅎ",
+        "ㅋ",
+        "ㅠ",
+        "ㅜ",
+        "오",
+        "와",
+        "헐",
+        "대박",
         # 작별
-        'bye', '잘가', '바이', '굿나잇', '굿모닝',
+        "bye",
+        "잘가",
+        "바이",
+        "굿나잇",
+        "굿모닝",
         # 기타 짧은 대화
-        '뭐해', '뭐야', '왜', '어때', '좋아', '싫어',
+        "뭐해",
+        "뭐야",
+        "왜",
+        "어때",
+        "좋아",
+        "싫어",
     ]
 
     # Maximum length for simple chat (15 characters)
@@ -231,20 +275,93 @@ class TaskAnalyzer:
         """Extract relevant keywords from prompt."""
         # Remove common words and extract meaningful terms
         common_words = {
-            "the", "a", "an", "is", "are", "was", "were", "be", "been",
-            "have", "has", "had", "do", "does", "did", "will", "would",
-            "could", "should", "may", "might", "must", "can", "to", "of",
-            "in", "for", "on", "with", "at", "by", "from", "as", "or",
-            "and", "but", "if", "then", "else", "when", "where", "what",
-            "which", "who", "how", "why", "all", "each", "every", "both",
-            "few", "more", "most", "other", "some", "such", "no", "not",
-            "only", "same", "so", "than", "too", "very", "just", "also",
-            "now", "here", "there", "this", "that", "these", "those",
-            "해", "줘", "해줘", "주세요", "하세요", "좀", "것", "거", "이", "그",
+            "the",
+            "a",
+            "an",
+            "is",
+            "are",
+            "was",
+            "were",
+            "be",
+            "been",
+            "have",
+            "has",
+            "had",
+            "do",
+            "does",
+            "did",
+            "will",
+            "would",
+            "could",
+            "should",
+            "may",
+            "might",
+            "must",
+            "can",
+            "to",
+            "of",
+            "in",
+            "for",
+            "on",
+            "with",
+            "at",
+            "by",
+            "from",
+            "as",
+            "or",
+            "and",
+            "but",
+            "if",
+            "then",
+            "else",
+            "when",
+            "where",
+            "what",
+            "which",
+            "who",
+            "how",
+            "why",
+            "all",
+            "each",
+            "every",
+            "both",
+            "few",
+            "more",
+            "most",
+            "other",
+            "some",
+            "such",
+            "no",
+            "not",
+            "only",
+            "same",
+            "so",
+            "than",
+            "too",
+            "very",
+            "just",
+            "also",
+            "now",
+            "here",
+            "there",
+            "this",
+            "that",
+            "these",
+            "those",
+            "해",
+            "줘",
+            "해줘",
+            "주세요",
+            "하세요",
+            "좀",
+            "것",
+            "거",
+            "이",
+            "그",
         }
 
         # Tokenize
-        words = re.findall(r'\b\w+\b', prompt.lower())
+        words = re.findall(r"\b\w+\b", prompt.lower())
 
         # Filter
         keywords = [w for w in words if w not in common_words and len(w) > 2]
@@ -287,11 +404,13 @@ class TaskAnalyzer:
             score -= 0.2
 
         # Multiple requirements increase complexity
-        type_count = sum([
-            self._check_patterns(prompt, self.CODE_PATTERNS),
-            self._check_patterns(prompt, self.DESIGN_PATTERNS),
-            self._check_patterns(prompt, self.ANALYSIS_PATTERNS),
-        ])
+        type_count = sum(
+            [
+                self._check_patterns(prompt, self.CODE_PATTERNS),
+                self._check_patterns(prompt, self.DESIGN_PATTERNS),
+                self._check_patterns(prompt, self.ANALYSIS_PATTERNS),
+            ]
+        )
         if type_count > 1:
             score += 0.1 * (type_count - 1)
 
@@ -356,11 +475,32 @@ class TaskAnalyzer:
 
         # 5. Check for technical keywords - if present, NOT simple chat
         technical_indicators = [
-            '코드', 'code', '함수', 'function', '구현', 'implement',
-            '버그', 'bug', '에러', 'error', '디버그', 'debug',
-            '설계', 'design', '아키텍처', 'architecture',
-            '분석', 'analyze', '비교', 'compare',
-            '만들어', '작성', '생성', 'create', 'make', 'build',
+            "코드",
+            "code",
+            "함수",
+            "function",
+            "구현",
+            "implement",
+            "버그",
+            "bug",
+            "에러",
+            "error",
+            "디버그",
+            "debug",
+            "설계",
+            "design",
+            "아키텍처",
+            "architecture",
+            "분석",
+            "analyze",
+            "비교",
+            "compare",
+            "만들어",
+            "작성",
+            "생성",
+            "create",
+            "make",
+            "build",
         ]
         for indicator in technical_indicators:
             if indicator in prompt:

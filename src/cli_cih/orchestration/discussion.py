@@ -1,8 +1,8 @@
 """Discussion manager for multi-AI conversations."""
 
 import asyncio
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Optional
 
 from cli_cih.adapters import AdapterError, AIAdapter
 from cli_cih.orchestration.context import SharedContext
@@ -27,18 +27,20 @@ class DiscussionState:
     current_round: int = 0
     is_complete: bool = False
     consensus_reached: bool = False
-    error: Optional[str] = None
+    error: str | None = None
     ai_responses: dict[str, list[str]] = field(default_factory=dict)
 
 
 class DiscussionEvent:
     """Base class for discussion events."""
+
     pass
 
 
 @dataclass
 class RoundStartEvent(DiscussionEvent):
     """Emitted when a round starts."""
+
     round_num: int
     max_rounds: int
 
@@ -46,12 +48,14 @@ class RoundStartEvent(DiscussionEvent):
 @dataclass
 class RoundEndEvent(DiscussionEvent):
     """Emitted when a round ends."""
+
     round_num: int
 
 
 @dataclass
 class AITurnStartEvent(DiscussionEvent):
     """Emitted when an AI's turn starts."""
+
     ai_name: str
     ai_icon: str
     ai_color: str
@@ -60,6 +64,7 @@ class AITurnStartEvent(DiscussionEvent):
 @dataclass
 class AIChunkEvent(DiscussionEvent):
     """Emitted for each chunk of AI response."""
+
     ai_name: str
     chunk: str
 
@@ -67,6 +72,7 @@ class AIChunkEvent(DiscussionEvent):
 @dataclass
 class AITurnEndEvent(DiscussionEvent):
     """Emitted when an AI's turn ends."""
+
     ai_name: str
     full_response: str
 
@@ -74,6 +80,7 @@ class AITurnEndEvent(DiscussionEvent):
 @dataclass
 class AIErrorEvent(DiscussionEvent):
     """Emitted when an AI encounters an error."""
+
     ai_name: str
     error: str
 
@@ -81,6 +88,7 @@ class AIErrorEvent(DiscussionEvent):
 @dataclass
 class ConsensusCheckEvent(DiscussionEvent):
     """Emitted when checking for consensus."""
+
     round_num: int
     consensus_reached: bool
 
@@ -88,6 +96,7 @@ class ConsensusCheckEvent(DiscussionEvent):
 @dataclass
 class DiscussionCompleteEvent(DiscussionEvent):
     """Emitted when discussion is complete."""
+
     total_rounds: int
     consensus_reached: bool
 
@@ -95,7 +104,7 @@ class DiscussionCompleteEvent(DiscussionEvent):
 class DiscussionManager:
     """Manages multi-AI discussions."""
 
-    def __init__(self, config: Optional[DiscussionConfig] = None):
+    def __init__(self, config: DiscussionConfig | None = None):
         """Initialize discussion manager.
 
         Args:
@@ -108,7 +117,7 @@ class DiscussionManager:
         self,
         task: Task,
         adapters: list[AIAdapter],
-        context: Optional[SharedContext] = None,
+        context: SharedContext | None = None,
     ) -> AsyncIterator[DiscussionEvent]:
         """Run a multi-AI discussion.
 
@@ -140,7 +149,7 @@ class DiscussionManager:
                 ai_name = adapter.name
 
                 # Build prompt for this AI
-                is_first_round = (round_num == 1)
+                is_first_round = round_num == 1
                 prompt = context.build_prompt_for(ai_name, is_first_round)
 
                 yield AITurnStartEvent(
@@ -215,8 +224,16 @@ class DiscussionManager:
         """
         # Simple heuristic: check for agreement phrases in recent messages
         agreement_phrases = [
-            "agree", "동의", "맞습니다", "correct", "좋은 의견", "good point",
-            "build on", "추가하면", "덧붙이면", "adding to",
+            "agree",
+            "동의",
+            "맞습니다",
+            "correct",
+            "좋은 의견",
+            "good point",
+            "build on",
+            "추가하면",
+            "덧붙이면",
+            "adding to",
         ]
 
         recent_messages = context.get_recent_messages(4)

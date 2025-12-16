@@ -1,8 +1,7 @@
 """Ollama HTTP adapter for CLI-CIH."""
 
-import asyncio
 import json
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -43,7 +42,7 @@ class OllamaAdapter(AIAdapter):
 
     def __init__(
         self,
-        config: Optional[AdapterConfig] = None,
+        config: AdapterConfig | None = None,
         use_korean: bool = True,
     ):
         """Initialize Ollama adapter.
@@ -114,8 +113,7 @@ class OllamaAdapter(AIAdapter):
         """
         if not await self.is_available():
             raise AdapterError(
-                f"Ollama를 사용할 수 없습니다 ({self._endpoint}). "
-                "실행: ollama serve"
+                f"Ollama를 사용할 수 없습니다 ({self._endpoint}). 실행: ollama serve"
             )
 
         # Use chat API with system prompt for Korean support
@@ -159,10 +157,10 @@ class OllamaAdapter(AIAdapter):
                         except json.JSONDecodeError:
                             continue
 
-        except httpx.TimeoutException:
-            raise AdapterTimeoutError(f"Ollama 응답 시간 초과 ({self.config.timeout}초)")
+        except httpx.TimeoutException as err:
+            raise AdapterTimeoutError(f"Ollama 응답 시간 초과 ({self.config.timeout}초)") from err
         except httpx.HTTPError as e:
-            raise AdapterError(f"Ollama HTTP 오류: {e}")
+            raise AdapterError(f"Ollama HTTP 오류: {e}") from e
 
     async def send_chat(
         self,
@@ -207,10 +205,10 @@ class OllamaAdapter(AIAdapter):
                         except json.JSONDecodeError:
                             continue
 
-        except httpx.TimeoutException:
-            raise AdapterTimeoutError(f"Ollama 응답 시간 초과 ({self.config.timeout}초)")
+        except httpx.TimeoutException as err:
+            raise AdapterTimeoutError(f"Ollama 응답 시간 초과 ({self.config.timeout}초)") from err
         except httpx.HTTPError as e:
-            raise AdapterError(f"Ollama HTTP 오류: {e}")
+            raise AdapterError(f"Ollama HTTP 오류: {e}") from e
 
     def set_model(self, model: str) -> None:
         """Set the model to use.

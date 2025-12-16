@@ -16,17 +16,17 @@ import shutil
 import subprocess
 import time
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import httpx
 from fastmcp import FastMCP
 
+from cli_cih.orchestration.ai_selector import AISelector
+
 # ═══════════════════════════════════════════════
 # Import from orchestration (NO DUPLICATION)
 # ═══════════════════════════════════════════════
-
-from cli_cih.orchestration.task_analyzer import TaskAnalyzer, TaskType, Task
-from cli_cih.orchestration.ai_selector import AISelector
+from cli_cih.orchestration.task_analyzer import TaskAnalyzer
 from cli_cih.storage.history import get_history_storage
 
 # ═══════════════════════════════════════════════
@@ -34,8 +34,7 @@ from cli_cih.storage.history import get_history_storage
 # ═══════════════════════════════════════════════
 
 mcp = FastMCP(
-    "cli-cih",
-    instructions="Multi-AI Discussion Orchestrator - 여러 AI를 조율하여 최적의 답변 도출"
+    "cli-cih", instructions="Multi-AI Discussion Orchestrator - 여러 AI를 조율하여 최적의 답변 도출"
 )
 
 # ═══════════════════════════════════════════════
@@ -52,7 +51,7 @@ _ai_selector = AISelector()
 
 def get_cli_path(name: str) -> str:
     """CLI 실행 파일 경로 찾기 (환경변수 > which > 기본값)."""
-    env_key = f'{name.upper()}_BIN'
+    env_key = f"{name.upper()}_BIN"
     if os.getenv(env_key):
         return os.getenv(env_key)
     path = shutil.which(name)
@@ -62,10 +61,10 @@ def get_cli_path(name: str) -> str:
 
 
 # CLI 경로 (동적으로 찾기)
-CLAUDE_CMD = get_cli_path('claude')
-GEMINI_CMD = get_cli_path('gemini')
-CODEX_CMD = get_cli_path('codex')
-COPILOT_CMD = get_cli_path('copilot')
+CLAUDE_CMD = get_cli_path("claude")
+GEMINI_CMD = get_cli_path("gemini")
+CODEX_CMD = get_cli_path("codex")
+COPILOT_CMD = get_cli_path("copilot")
 OLLAMA_ENDPOINT = os.getenv("OLLAMA_ENDPOINT", "http://localhost:11434")
 
 # Docker MCP Gateway 설정
@@ -83,13 +82,15 @@ KOREAN_SYSTEM_PROMPT = (
 # Standard Response Schema
 # ═══════════════════════════════════════════════
 
+
 @dataclass
 class MCPResponse:
     """Standardized MCP tool response."""
+
     success: bool
-    data: Optional[dict] = None
-    error: Optional[str] = None
-    metadata: Optional[dict] = None
+    data: dict | None = None
+    error: str | None = None
+    metadata: dict | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -102,10 +103,10 @@ class MCPResponse:
 
 def make_response(
     success: bool,
-    data: Optional[dict] = None,
-    error: Optional[str] = None,
-    duration_ms: Optional[int] = None,
-    ai_used: Optional[list[str]] = None,
+    data: dict | None = None,
+    error: str | None = None,
+    duration_ms: int | None = None,
+    ai_used: list[str] | None = None,
 ) -> dict:
     """Create standardized response."""
     metadata = {}
@@ -126,13 +127,14 @@ def make_response(
 # CLI 실행 헬퍼
 # ═══════════════════════════════════════════════
 
+
 def run_cli_safe(command: list[str], timeout: int = 120) -> dict:
     """CLI 명령어 안전하게 실행."""
     try:
         env = os.environ.copy()
-        env['TERM'] = 'dumb'
-        env['NO_COLOR'] = '1'
-        env['CI'] = '1'
+        env["TERM"] = "dumb"
+        env["NO_COLOR"] = "1"
+        env["CI"] = "1"
 
         result = subprocess.run(
             command,
@@ -176,7 +178,7 @@ async def call_ollama(prompt: str, model: str = "llama3.1:70b") -> dict:
                     "response": data.get("message", {}).get("content", ""),
                     "model": model,
                     "success": True,
-                    "source": "ollama"
+                    "source": "ollama",
                 }
             return {"error": f"HTTP {response.status_code}", "success": False}
     except Exception as e:
@@ -186,6 +188,7 @@ async def call_ollama(prompt: str, model: str = "llama3.1:70b") -> dict:
 # ═══════════════════════════════════════════════
 # Docker MCP Gateway 클라이언트
 # ═══════════════════════════════════════════════
+
 
 class DockerGatewayClient:
     """Docker MCP Gateway HTTP 클라이언트 with retry."""
@@ -208,12 +211,7 @@ class DockerGatewayClient:
             await self._client.aclose()
             self._client = None
 
-    async def _request_with_retry(
-        self,
-        method: str,
-        path: str,
-        **kwargs
-    ) -> httpx.Response:
+    async def _request_with_retry(self, method: str, path: str, **kwargs) -> httpx.Response:
         """Make request with retry logic."""
         client = await self._get_client()
         last_error = None
@@ -246,8 +244,7 @@ class DockerGatewayClient:
         """서버 검색 (mcp-find)."""
         try:
             response = await self._request_with_retry(
-                "GET", "/servers/search",
-                params={"query": query, "limit": limit}
+                "GET", "/servers/search", params={"query": query, "limit": limit}
             )
             if response.status_code == 200:
                 return {"success": True, "results": response.json()}
@@ -265,14 +262,9 @@ class DockerGatewayClient:
         """MCP 서버의 도구 호출 (mcp-exec) with timeout."""
         try:
             client = await self._get_client()
-            payload = {
-                "server": server,
-                "tool": tool,
-                "arguments": arguments or {}
-            }
+            payload = {"server": server, "tool": tool, "arguments": arguments or {}}
             response = await asyncio.wait_for(
-                client.post("/tools/call", json=payload),
-                timeout=timeout
+                client.post("/tools/call", json=payload), timeout=timeout
             )
             if response.status_code == 200:
                 return {"success": True, "result": response.json()}
@@ -298,7 +290,7 @@ class DockerGatewayClient:
             response = await self._request_with_retry("GET", "/health")
             return {
                 "success": response.status_code == 200,
-                "status": response.json() if response.status_code == 200 else None
+                "status": response.json() if response.status_code == 200 else None,
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -320,6 +312,7 @@ def get_gateway_client() -> DockerGatewayClient:
 # MCP Tools - Core Functions
 # ═══════════════════════════════════════════════
 
+
 @mcp.tool()
 async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict:
     """
@@ -339,7 +332,9 @@ async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict:
         if ai == "claude":
             result = run_cli_safe([CLAUDE_CMD, "-p", prompt], timeout=timeout)
         elif ai == "codex":
-            result = run_cli_safe([CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout)
+            result = run_cli_safe(
+                [CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout
+            )
         elif ai == "gemini":
             result = run_cli_safe([GEMINI_CMD, prompt], timeout=timeout)
         elif ai == "ollama":
@@ -395,13 +390,18 @@ async def cih_analyze(prompt: str) -> dict:
             "prompt": prompt[:100] + "..." if len(prompt) > 100 else prompt,
             "task_type": task.task_type.value,
             "complexity": round(task.complexity, 2),
-            "complexity_level": "low" if task.complexity < 0.3 else "medium" if task.complexity < 0.7 else "high",
+            "complexity_level": "low"
+            if task.complexity < 0.3
+            else "medium"
+            if task.complexity < 0.7
+            else "high",
             "keywords": task.keywords[:5],
             "requires_multi_ai": task.requires_multi_ai,
             "suggested_rounds": task.suggested_rounds,
             "suggested_ai_count": task.suggested_ai_count,
             "recommendation": (
-                "단일 AI 빠른 응답 (cih_quick)" if not task.requires_multi_ai
+                "단일 AI 빠른 응답 (cih_quick)"
+                if not task.requires_multi_ai
                 else "멀티 AI 토론 (cih_discuss)"
             ),
         }
@@ -419,7 +419,7 @@ async def cih_analyze(prompt: str) -> dict:
 @mcp.tool()
 async def cih_discuss(
     prompt: str,
-    ais: Optional[list[str]] = None,
+    ais: list[str] | None = None,
     max_rounds: int = 2,
     include_synthesis: bool = True,
     timeout: int = 90,
@@ -446,7 +446,7 @@ async def cih_discuss(
         # AI 선택
         if ais is None:
             if task.requires_multi_ai:
-                ais = ["claude", "codex", "gemini"][:task.suggested_ai_count]
+                ais = ["claude", "codex", "gemini"][: task.suggested_ai_count]
             else:
                 ais = ["claude"]
 
@@ -468,7 +468,9 @@ async def cih_discuss(
                 return ai_name, {"error": result.get("error", "Unknown"), "success": False}
 
             elif ai_name == "codex":
-                result = run_cli_safe([CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout)
+                result = run_cli_safe(
+                    [CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout
+                )
                 if result["success"]:
                     return ai_name, {"response": result["stdout"], "success": True}
                 return ai_name, {"error": result.get("error", "Unknown"), "success": False}
@@ -520,10 +522,7 @@ async def cih_discuss(
 
                 synthesis_result = run_cli_safe([CLAUDE_CMD, "-p", synthesis_prompt], timeout=60)
                 if synthesis_result["success"]:
-                    synthesis = {
-                        "summary": synthesis_result["stdout"],
-                        "synthesized_by": "claude"
-                    }
+                    synthesis = {"summary": synthesis_result["stdout"], "synthesized_by": "claude"}
 
         duration = int((time.time() - start) * 1000)
         successful_ais = [ai for ai, r in responses.items() if r.get("success")]
@@ -550,7 +549,7 @@ async def cih_discuss(
 @mcp.tool()
 async def cih_compare(
     prompt: str,
-    ais: list[str] = ["claude", "codex", "gemini"],
+    ais: list[str] | None = None,
     timeout: int = 90,
 ) -> dict:
     """
@@ -564,6 +563,8 @@ async def cih_compare(
     Returns:
         각 AI 응답과 비교 분석
     """
+    if ais is None:
+        ais = ["claude", "codex", "gemini"]
     result = await cih_discuss(prompt, ais=ais, include_synthesis=True, timeout=timeout)
     if result.get("data"):
         result["data"]["mode"] = "comparison"
@@ -638,7 +639,7 @@ async def cih_status() -> dict:
                 "total_ais": 5,
                 "available": available_count,
                 "ready": available_count >= 2,
-            }
+            },
         },
         duration_ms=int((time.time() - start) * 1000),
     )
@@ -647,7 +648,7 @@ async def cih_status() -> dict:
 @mcp.tool()
 async def cih_smart(
     prompt: str,
-    task_type: Optional[Literal["code", "debug", "design", "research", "explain", "general"]] = None,
+    task_type: Literal["code", "debug", "design", "research", "explain", "general"] | None = None,
     timeout: int = 90,
 ) -> dict:
     """
@@ -684,7 +685,9 @@ async def cih_smart(
 
         # AI 호출
         if ai == "codex":
-            result = run_cli_safe([CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout)
+            result = run_cli_safe(
+                [CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout
+            )
         elif ai == "gemini":
             result = run_cli_safe([GEMINI_CMD, prompt], timeout=timeout)
         else:  # claude
@@ -719,8 +722,9 @@ async def cih_smart(
 # MCP Tools - New in Phase 5
 # ═══════════════════════════════════════════════
 
+
 @mcp.tool()
-async def cih_history(limit: int = 10, search: Optional[str] = None) -> dict:
+async def cih_history(limit: int = 10, search: str | None = None) -> dict:
     """
     대화 히스토리 조회
 
@@ -813,7 +817,7 @@ async def cih_history_detail(session_id: str, format: str = "json") -> dict:
                 "result": {
                     "summary": session.result.summary if session.result else None,
                     "consensus": session.result.consensus_reached if session.result else None,
-                }
+                },
             },
             duration_ms=int((time.time() - start) * 1000),
         )
@@ -836,7 +840,12 @@ async def cih_models() -> dict:
         models = {}
 
         # Cloud AIs (CLI-based)
-        for name, cmd in [("claude", CLAUDE_CMD), ("codex", CODEX_CMD), ("gemini", GEMINI_CMD), ("copilot", COPILOT_CMD)]:
+        for name, cmd in [
+            ("claude", CLAUDE_CMD),
+            ("codex", CODEX_CMD),
+            ("gemini", GEMINI_CMD),
+            ("copilot", COPILOT_CMD),
+        ]:
             result = run_cli_safe([cmd, "--version"], timeout=10)
             models[name] = {
                 "available": result["success"],
@@ -906,6 +915,7 @@ async def cih_stats() -> dict:
 # Docker Gateway MCP Tools
 # ═══════════════════════════════════════════════
 
+
 @mcp.tool()
 async def cih_gateway_status() -> dict:
     """
@@ -918,8 +928,7 @@ async def cih_gateway_status() -> dict:
 
     if not DOCKER_GATEWAY_ENABLED:
         return make_response(
-            False,
-            error="Docker Gateway가 비활성화되어 있습니다 (DOCKER_GATEWAY_ENABLED=false)"
+            False, error="Docker Gateway가 비활성화되어 있습니다 (DOCKER_GATEWAY_ENABLED=false)"
         )
 
     try:
@@ -950,7 +959,9 @@ async def cih_gateway_status() -> dict:
                 "connected": True,
                 "gateway_url": DOCKER_GATEWAY_URL,
                 "server_count": len(server_list),
-                "servers": [s.get("name", s) if isinstance(s, dict) else s for s in server_list[:10]],
+                "servers": [
+                    s.get("name", s) if isinstance(s, dict) else s for s in server_list[:10]
+                ],
                 "tool_counts_sample": tool_counts,
                 "health": health.get("status"),
             },
@@ -1015,7 +1026,9 @@ async def cih_gateway_tools(server: str) -> dict:
 
         return make_response(
             result["success"],
-            data={"server": server, "tools": result.get("tools", [])} if result["success"] else None,
+            data={"server": server, "tools": result.get("tools", [])}
+            if result["success"]
+            else None,
             error=result.get("error"),
             duration_ms=int((time.time() - start) * 1000),
         )
@@ -1028,7 +1041,7 @@ async def cih_gateway_tools(server: str) -> dict:
 async def cih_gateway_exec(
     server: str,
     tool: str,
-    arguments: Optional[dict[str, Any]] = None,
+    arguments: dict[str, Any] | None = None,
     timeout: float = 60.0,
 ) -> dict:
     """
@@ -1054,7 +1067,9 @@ async def cih_gateway_exec(
 
         return make_response(
             result["success"],
-            data={"server": server, "tool": tool, "result": result.get("result")} if result["success"] else None,
+            data={"server": server, "tool": tool, "result": result.get("result")}
+            if result["success"]
+            else None,
             error=result.get("error"),
             duration_ms=int((time.time() - start) * 1000),
         )
@@ -1099,12 +1114,14 @@ async def cih_gateway_multi_exec(
         processed = []
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                processed.append({
-                    "server": calls[i].get("server"),
-                    "tool": calls[i].get("tool"),
-                    "success": False,
-                    "error": str(result)
-                })
+                processed.append(
+                    {
+                        "server": calls[i].get("server"),
+                        "tool": calls[i].get("tool"),
+                        "success": False,
+                        "error": str(result),
+                    }
+                )
             else:
                 processed.append(result)
 
@@ -1128,6 +1145,7 @@ async def cih_gateway_multi_exec(
 # ═══════════════════════════════════════════════
 # 서버 실행
 # ═══════════════════════════════════════════════
+
 
 def run_server():
     """MCP 서버 실행."""

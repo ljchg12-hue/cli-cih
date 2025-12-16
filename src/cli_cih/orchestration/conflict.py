@@ -3,7 +3,6 @@
 import re
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
 
 from cli_cih.orchestration.context import SharedContext
 from cli_cih.orchestration.task_analyzer import TaskType
@@ -12,19 +11,19 @@ from cli_cih.orchestration.task_analyzer import TaskType
 class ConflictSeverity(str, Enum):
     """Severity levels for conflicts."""
 
-    LOW = "low"          # Minor disagreement, easily resolved
-    MEDIUM = "medium"    # Significant disagreement
-    HIGH = "high"        # Strong opposing views
+    LOW = "low"  # Minor disagreement, easily resolved
+    MEDIUM = "medium"  # Significant disagreement
+    HIGH = "high"  # Strong opposing views
     CRITICAL = "critical"  # Fundamental disagreement requiring user input
 
 
 class ResolutionType(str, Enum):
     """Types of conflict resolution."""
 
-    AUTO_RESOLVED = "auto_resolved"     # Resolved by weighted voting
-    USER_DECISION = "user_decision"     # Requires user choice
-    COMPROMISE = "compromise"           # Merged solution
-    DEFERRED = "deferred"              # More discussion needed
+    AUTO_RESOLVED = "auto_resolved"  # Resolved by weighted voting
+    USER_DECISION = "user_decision"  # Requires user choice
+    COMPROMISE = "compromise"  # Merged solution
+    DEFERRED = "deferred"  # More discussion needed
 
 
 @dataclass
@@ -64,7 +63,7 @@ class Resolution:
     """Resolution of a conflict."""
 
     type: ResolutionType
-    winner: Optional[str] = None
+    winner: str | None = None
     options: list[VotedOption] = field(default_factory=list)
     explanation: str = ""
     confidence: float = 0.0
@@ -124,16 +123,16 @@ class ConflictResolver:
 
     # Disagreement indicators
     DISAGREEMENT_PATTERNS = [
-        r'\b(disagree|동의하지 않|다른 의견|however|but|그러나|반면|alternatively)\b',
-        r'\b(instead|대신|rather than|오히려|on the contrary)\b',
-        r'\b(not recommend|추천하지 않|against|반대)\b',
-        r'\b(wrong|잘못|incorrect|틀린|mistake)\b',
+        r"\b(disagree|동의하지 않|다른 의견|however|but|그러나|반면|alternatively)\b",
+        r"\b(instead|대신|rather than|오히려|on the contrary)\b",
+        r"\b(not recommend|추천하지 않|against|반대)\b",
+        r"\b(wrong|잘못|incorrect|틀린|mistake)\b",
     ]
 
     # Agreement indicators
     AGREEMENT_PATTERNS = [
-        r'\b(agree|동의|correct|맞|build on|추가|support|지지)\b',
-        r'\b(good point|좋은 의견|exactly|정확|same|같은)\b',
+        r"\b(agree|동의|correct|맞|build on|추가|support|지지)\b",
+        r"\b(good point|좋은 의견|exactly|정확|same|같은)\b",
     ]
 
     def __init__(self, task_type: TaskType = TaskType.GENERAL):
@@ -144,7 +143,7 @@ class ConflictResolver:
         """
         self.task_type = task_type
 
-    def detect_conflict(self, context: SharedContext) -> Optional[Conflict]:
+    def detect_conflict(self, context: SharedContext) -> Conflict | None:
         """Detect conflicts between AI opinions.
 
         Args:
@@ -227,9 +226,9 @@ class ConflictResolver:
         """Extract the main position/recommendation from text."""
         # Look for recommendation patterns
         patterns = [
-            r'(?:recommend|suggest|추천|제안)[s]?[:\s]+([^.!?\n]+)',
-            r'(?:should use|should be|해야|사용해야)[:\s]+([^.!?\n]+)',
-            r'(?:best|최선|best option|best choice)[:\s]+([^.!?\n]+)',
+            r"(?:recommend|suggest|추천|제안)[s]?[:\s]+([^.!?\n]+)",
+            r"(?:should use|should be|해야|사용해야)[:\s]+([^.!?\n]+)",
+            r"(?:best|최선|best option|best choice)[:\s]+([^.!?\n]+)",
         ]
 
         for pattern in patterns:
@@ -238,7 +237,7 @@ class ConflictResolver:
                 return match.group(1).strip()[:100]
 
         # Fall back to first sentence
-        sentences = re.split(r'[.!?]\s+', text)
+        sentences = re.split(r"[.!?]\s+", text)
         if sentences:
             return sentences[0].strip()[:100]
 
@@ -250,16 +249,16 @@ class ConflictResolver:
 
         # High confidence indicators
         high_confidence = [
-            r'\b(definitely|certainly|확실히|분명히|strongly)\b',
-            r'\b(best|최선|optimal|최적)\b',
-            r'\b(must|반드시|should definitely)\b',
+            r"\b(definitely|certainly|확실히|분명히|strongly)\b",
+            r"\b(best|최선|optimal|최적)\b",
+            r"\b(must|반드시|should definitely)\b",
         ]
 
         # Low confidence indicators
         low_confidence = [
-            r'\b(maybe|아마|perhaps|possibly)\b',
-            r'\b(could|might|할 수도)\b',
-            r'\b(not sure|확실하지 않|uncertain)\b',
+            r"\b(maybe|아마|perhaps|possibly)\b",
+            r"\b(could|might|할 수도)\b",
+            r"\b(not sure|확실하지 않|uncertain)\b",
         ]
 
         text_lower = text.lower()
@@ -279,11 +278,11 @@ class ConflictResolver:
         points = []
 
         # Look for numbered lists
-        numbered = re.findall(r'^\d+[.)]\s*(.+)$', text, re.MULTILINE)
+        numbered = re.findall(r"^\d+[.)]\s*(.+)$", text, re.MULTILINE)
         points.extend(numbered[:5])
 
         # Look for bullet points
-        bullets = re.findall(r'^[-*]\s*(.+)$', text, re.MULTILINE)
+        bullets = re.findall(r"^[-*]\s*(.+)$", text, re.MULTILINE)
         points.extend(bullets[:5])
 
         # Clean and limit
@@ -334,7 +333,7 @@ class ConflictResolver:
         positions = [o.position.lower().split()[:3] for o in opinions]
 
         # Count unique starting phrases
-        unique_starts = len(set(tuple(p) for p in positions))
+        unique_starts = len({tuple(p) for p in positions})
 
         # Normalize
         return (unique_starts - 1) / (len(opinions) - 1) if len(opinions) > 1 else 0.0
@@ -364,12 +363,12 @@ class ConflictResolver:
         """Identify the topic of conflict."""
         # Look for common technical terms
         tech_patterns = [
-            r'\b(framework|프레임워크)\b',
-            r'\b(language|언어)\b',
-            r'\b(database|데이터베이스)\b',
-            r'\b(architecture|아키텍처)\b',
-            r'\b(approach|접근|방법)\b',
-            r'\b(library|라이브러리)\b',
+            r"\b(framework|프레임워크)\b",
+            r"\b(language|언어)\b",
+            r"\b(database|데이터베이스)\b",
+            r"\b(architecture|아키텍처)\b",
+            r"\b(approach|접근|방법)\b",
+            r"\b(library|라이브러리)\b",
         ]
 
         all_text = " ".join(m.content for m in context.messages)

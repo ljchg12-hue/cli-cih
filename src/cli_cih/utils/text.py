@@ -3,7 +3,7 @@
 import re
 
 # ANSI 코드 제거 정규식 (모듈 로드 시 1회 컴파일)
-ANSI_ESCAPE_PATTERN = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+ANSI_ESCAPE_PATTERN = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
 
 
 def clean_ansi(text: str) -> str:
@@ -15,7 +15,7 @@ def clean_ansi(text: str) -> str:
     Returns:
         Text with ANSI codes removed.
     """
-    return ANSI_ESCAPE_PATTERN.sub('', text)
+    return ANSI_ESCAPE_PATTERN.sub("", text)
 
 
 def truncate_text(text: str, max_length: int = 500, suffix: str = "...") -> str:

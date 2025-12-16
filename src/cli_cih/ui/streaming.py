@@ -2,12 +2,10 @@
 
 import asyncio
 import re
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
-from rich.console import Console, Group
+from rich.console import Console
 from rich.live import Live
-from rich.markdown import Markdown
-from rich.panel import Panel
 from rich.spinner import Spinner
 from rich.text import Text
 
@@ -129,15 +127,11 @@ class ThinkingIndicator:
         self.ai_name = ai_name
         self.ai_icon = ai_icon
         self.ai_color = AI_COLORS.get(ai_name.lower(), "white")
-        self._live: Optional[Live] = None
+        self._live: Live | None = None
 
     def start(self) -> None:
         """Start showing thinking indicator."""
         spinner = Spinner("dots", text=Text(f" {self.ai_name} is thinking...", style="dim"))
-        content = Group(
-            Text(f"{self.ai_icon} ", style=self.ai_color),
-            spinner,
-        )
         self._live = Live(
             spinner,
             console=self.console,
@@ -173,16 +167,15 @@ def detect_code_blocks(text: str) -> list[tuple[str, bool]]:
         List of (content, is_code) tuples.
     """
     parts = []
-    pattern = r'```(\w*)\n(.*?)```'
+    pattern = r"```(\w*)\n(.*?)```"
 
     last_end = 0
     for match in re.finditer(pattern, text, re.DOTALL):
         # Add text before code block
         if match.start() > last_end:
-            parts.append((text[last_end:match.start()], False))
+            parts.append((text[last_end : match.start()], False))
 
-        # Add code block
-        lang = match.group(1) or "text"
+        # Add code block (language hint not used in simple detection)
         code = match.group(2)
         parts.append((code, True))
         last_end = match.end()

@@ -1,15 +1,12 @@
 """Interactive mode for CLI-CIH - Single AI and Multi-AI conversation interface."""
 
 import asyncio
-import signal
 from pathlib import Path
-from typing import Optional
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.history import FileHistory
 from prompt_toolkit.styles import Style
 from rich.console import Console
-from rich.live import Live
 from rich.text import Text
 
 from cli_cih import __version__
@@ -31,10 +28,8 @@ from cli_cih.orchestration import (
     RoundStartEvent,
     TaskAnalyzedEvent,
 )
-from cli_cih.ui.spinner import loading
-from cli_cih.ui.approval_prompt import ApprovalPrompt, ConflictPrompt
+from cli_cih.ui.approval_prompt import ConflictPrompt
 from cli_cih.ui.panels import (
-    create_ai_response_panel,
     create_ai_selection_panel,
     create_ai_switch_panel,
     create_consensus_panel,
@@ -47,13 +42,16 @@ from cli_cih.ui.panels import (
     create_synthesis_panel,
     create_task_info_panel,
 )
+from cli_cih.ui.spinner import loading
 from cli_cih.ui.streaming import StreamingDisplay
 from cli_cih.ui.themes import AI_COLORS
 
 # Prompt styles (prompt_toolkit uses ANSI color names)
-USER_PROMPT_STYLE = Style.from_dict({
-    "prompt": "bold ansiwhite",
-})
+USER_PROMPT_STYLE = Style.from_dict(
+    {
+        "prompt": "bold ansiwhite",
+    }
+)
 
 
 def get_history_path() -> Path:
@@ -73,8 +71,8 @@ class InteractiveSession:
 
     def __init__(
         self,
-        ai_name: Optional[str] = None,
-        console: Optional[Console] = None,
+        ai_name: str | None = None,
+        console: Console | None = None,
     ):
         """Initialize interactive session.
 
@@ -84,8 +82,8 @@ class InteractiveSession:
         """
         self.console = console or get_console()
         self.ai_name = ai_name
-        self.adapter: Optional[AIAdapter] = None
-        self.session: Optional[PromptSession] = None
+        self.adapter: AIAdapter | None = None
+        self.session: PromptSession | None = None
         self._running = False
         self._interrupted = False
 
@@ -115,17 +113,18 @@ class InteractiveSession:
                 self.ai_name = self.adapter.name
 
         if self.adapter is None:
-            self.console.print(create_error_panel(
-                "No AI adapters available!\n"
-                "Install: claude, codex, gemini or start ollama"
-            ))
+            self.console.print(
+                create_error_panel(
+                    "No AI adapters available!\nInstall: claude, codex, gemini or start ollama"
+                )
+            )
             return False
 
         # Check availability (uses cache from parallel check)
         if not await self.adapter.is_available():
-            self.console.print(create_error_panel(
-                f"{self.adapter.display_name}을(를) 사용할 수 없습니다"
-            ))
+            self.console.print(
+                create_error_panel(f"{self.adapter.display_name}을(를) 사용할 수 없습니다")
+            )
             return False
 
         # Setup prompt session
@@ -173,7 +172,7 @@ class InteractiveSession:
         self.console.print(create_ai_switch_panel(old_name, new_ai_name))
         return True
 
-    async def handle_command(self, command: str) -> Optional[str]:
+    async def handle_command(self, command: str) -> str | None:
         """Handle slash commands.
 
         Args:
@@ -231,10 +230,9 @@ class InteractiveSession:
             available = adapter.name in available_names
             status = "[green]✅ Available[/green]" if available else "[red]❌ Unavailable[/red]"
             current = " [cyan](current)[/cyan]" if adapter.name == self.ai_name else ""
-            table.add_row(
-                f"[{adapter.color}]{adapter.icon} {adapter.display_name}[/{adapter.color}]{current}",
-                status,
-            )
+            ai_label = f"[{adapter.color}]{adapter.icon} {adapter.display_name}"
+            ai_label += f"[/{adapter.color}]{current}"
+            table.add_row(ai_label, status)
 
         self.console.print(table)
 
@@ -269,6 +267,7 @@ class InteractiveSession:
             streamer: Streaming display handler.
             message: User's message.
         """
+
         async def stream_task():
             try:
                 await streamer.stream_response(self.adapter.send(message))
@@ -335,7 +334,7 @@ class InteractiveSession:
         self.console.print("\n[cyan]Goodbye![/cyan]")
 
 
-def start_interactive_mode(ai_name: Optional[str] = None) -> None:
+def start_interactive_mode(ai_name: str | None = None) -> None:
     """Start the interactive CLI mode.
 
     Args:
@@ -360,7 +359,7 @@ class DiscussionSession:
 
     def __init__(
         self,
-        console: Optional[Console] = None,
+        console: Console | None = None,
         min_ais: int = 2,
         max_ais: int = 4,
     ):
@@ -374,7 +373,7 @@ class DiscussionSession:
         self.console = console or get_console()
         self.coordinator = Coordinator(min_ais=min_ais, max_ais=max_ais)
         self.conflict_prompt = ConflictPrompt(console=self.console)
-        self.session: Optional[PromptSession] = None
+        self.session: PromptSession | None = None
         self._running = False
         self._available_adapters: list[AIAdapter] = []
         self._current_ai_buffer = ""
@@ -397,11 +396,13 @@ class DiscussionSession:
             self._available_adapters = await Coordinator.check_adapters_parallel(all_adapters)
 
         if len(self._available_adapters) < 2:
-            self.console.print(create_error_panel(
-                f"Need at least 2 AIs for discussion mode!\n"
-                f"Found: {len(self._available_adapters)}\n"
-                "Install: claude, codex, gemini or start ollama"
-            ))
+            self.console.print(
+                create_error_panel(
+                    f"Need at least 2 AIs for discussion mode!\n"
+                    f"Found: {len(self._available_adapters)}\n"
+                    "Install: claude, codex, gemini or start ollama"
+                )
+            )
             return False
 
         # Setup prompt session
@@ -422,7 +423,7 @@ class DiscussionSession:
         self.console.print(header)
         self.console.print()
 
-    async def handle_command(self, command: str) -> Optional[str]:
+    async def handle_command(self, command: str) -> str | None:
         """Handle slash commands.
 
         Args:
@@ -512,8 +513,6 @@ class DiscussionSession:
             user_input: User's question/topic.
         """
         self.console.print()
-        current_round = 0
-        max_rounds = 5
         self._interrupted = False
 
         try:
@@ -524,9 +523,6 @@ class DiscussionSession:
 
     async def _run_discussion_with_interrupt(self, user_input: str) -> None:
         """Run discussion with interrupt support."""
-        current_round = 0
-        max_rounds = 5
-
         async for event in self.coordinator.process(user_input, self._available_adapters):
             # Check for interrupt
             if self._interrupted:
@@ -552,8 +548,6 @@ class DiscussionSession:
 
             elif isinstance(event, RoundStartEvent):
                 # Show round header
-                current_round = event.round_num
-                max_rounds = event.max_rounds
                 header = create_round_header(event.round_num, event.max_rounds)
                 self.console.print(header)
 
@@ -646,7 +640,9 @@ class DiscussionSession:
                     elif result and result.startswith("solo:"):
                         # Switch to solo mode
                         ai_name = result.split(":", 1)[1]
-                        self.console.print(f"\n[cyan]Switching to solo mode with {ai_name}...[/cyan]\n")
+                        self.console.print(
+                            f"\n[cyan]Switching to solo mode with {ai_name}...[/cyan]\n"
+                        )
                         solo_session = InteractiveSession(ai_name=ai_name, console=self.console)
                         await solo_session.run()
                         # After returning from solo, show header again
@@ -671,6 +667,7 @@ class DiscussionSession:
             except Exception as e:
                 self.console.print(f"[red]오류: {e}[/red]")
                 import traceback
+
                 traceback.print_exc()
                 continue
 

@@ -4,7 +4,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 
 class SessionStatus(str, Enum):
@@ -45,7 +44,7 @@ class HistoryMessage:
         sender_id: str,
         content: str,
         round_num: int = 0,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> "HistoryMessage":
         """Create a new message with generated ID."""
         return cls(
@@ -76,7 +75,7 @@ class SessionResult:
         cls,
         session_id: str,
         summary: str,
-        key_points: Optional[list[str]] = None,
+        key_points: list[str] | None = None,
         consensus_reached: bool = False,
         confidence: float = 0.0,
     ) -> "SessionResult":
@@ -104,14 +103,14 @@ class Session:
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
     messages: list[HistoryMessage] = field(default_factory=list)
-    result: Optional[SessionResult] = None
+    result: SessionResult | None = None
 
     @classmethod
     def create(
         cls,
         user_query: str,
         task_type: str = "general",
-        participating_ais: Optional[list[str]] = None,
+        participating_ais: list[str] | None = None,
     ) -> "Session":
         """Create a new session with generated ID."""
         return cls(
@@ -127,7 +126,7 @@ class Session:
         sender_id: str,
         content: str,
         round_num: int = 0,
-        metadata: Optional[dict] = None,
+        metadata: dict | None = None,
     ) -> HistoryMessage:
         """Add a message to the session."""
         message = HistoryMessage.create(
@@ -145,7 +144,7 @@ class Session:
     def set_result(
         self,
         summary: str,
-        key_points: Optional[list[str]] = None,
+        key_points: list[str] | None = None,
         consensus_reached: bool = False,
         confidence: float = 0.0,
     ) -> SessionResult:
@@ -181,5 +180,7 @@ class Session:
     @property
     def summary_text(self) -> str:
         """Get a brief summary for display."""
-        query_preview = self.user_query[:50] + "..." if len(self.user_query) > 50 else self.user_query
+        query_preview = (
+            self.user_query[:50] + "..." if len(self.user_query) > 50 else self.user_query
+        )
         return f"{query_preview} ({len(self.participating_ais)} AIs, {self.total_rounds} rounds)"

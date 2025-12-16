@@ -1,8 +1,6 @@
 """Loading indicator utilities for CLI-CIH."""
 
-import asyncio
 from contextlib import asynccontextmanager
-from typing import Optional
 
 from rich.console import Console
 from rich.live import Live
@@ -17,7 +15,7 @@ class LoadingIndicator:
         self,
         message: str = "처리 중...",
         spinner: str = "dots",
-        console: Optional[Console] = None,
+        console: Console | None = None,
     ):
         """Initialize loading indicator.
 
@@ -29,7 +27,7 @@ class LoadingIndicator:
         self.message = message
         self.spinner_name = spinner
         self.console = console or Console()
-        self._live: Optional[Live] = None
+        self._live: Live | None = None
         self._active = False
 
     async def __aenter__(self) -> "LoadingIndicator":
@@ -64,7 +62,7 @@ class LoadingIndicator:
 async def loading(
     message: str = "처리 중...",
     spinner: str = "dots",
-    console: Optional[Console] = None,
+    console: Console | None = None,
 ):
     """Async context manager for showing a loading spinner.
 
@@ -94,7 +92,7 @@ class ProgressTracker:
     def __init__(
         self,
         total_steps: int,
-        console: Optional[Console] = None,
+        console: Console | None = None,
     ):
         """Initialize progress tracker.
 

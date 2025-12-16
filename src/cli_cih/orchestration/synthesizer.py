@@ -1,7 +1,6 @@
 """Result synthesis for multi-AI discussions."""
 
-from dataclasses import dataclass, field
-from typing import Optional
+from dataclasses import dataclass
 
 from cli_cih.orchestration.context import SharedContext
 
@@ -67,10 +66,7 @@ class Synthesizer:
         )
 
         # Get contribution stats
-        ai_contributions = {
-            name: count
-            for name, count in context.ai_message_counts.items()
-        }
+        ai_contributions = dict(context.ai_message_counts)
 
         return SynthesisResult(
             summary=summary,
@@ -95,7 +91,8 @@ class Synthesizer:
 
             # Look for numbered items
             import re
-            numbered = re.findall(r'^\d+[\.\)]\s*(.+)$', content, re.MULTILINE)
+
+            numbered = re.findall(r"^\d+[\.\)]\s*(.+)$", content, re.MULTILINE)
             for item in numbered:
                 item = item.strip()[:100]
                 if item and item not in points:
@@ -103,9 +100,9 @@ class Synthesizer:
 
             # Look for "key"/"important" phrases
             important_patterns = [
-                r'중요한[^.]*점[은는]?\s*:?\s*(.+)',
-                r'key point[s]?[:]?\s*(.+)',
-                r'important[ly]?[:]?\s*(.+)',
+                r"중요한[^.]*점[은는]?\s*:?\s*(.+)",
+                r"key point[s]?[:]?\s*(.+)",
+                r"important[ly]?[:]?\s*(.+)",
             ]
             for pattern in important_patterns:
                 matches = re.findall(pattern, content, re.IGNORECASE)
@@ -135,21 +132,21 @@ class Synthesizer:
 
         # Agreement phrases
         agreement_patterns = [
-            r'동의합니다[.:]?\s*(.+)',
-            r'agree[d]?[.:]?\s*(.+)',
-            r'맞습니다[.:]?\s*(.+)',
-            r'좋은 의견입니다[.:]?\s*(.+)',
-            r'build on (?:that|this)[.:]?\s*(.+)',
+            r"동의합니다[.:]?\s*(.+)",
+            r"agree[d]?[.:]?\s*(.+)",
+            r"맞습니다[.:]?\s*(.+)",
+            r"좋은 의견입니다[.:]?\s*(.+)",
+            r"build on (?:that|this)[.:]?\s*(.+)",
         ]
 
         # Disagreement phrases
         disagreement_patterns = [
-            r'동의하지 않[습니다는][.:]?\s*(.+)',
-            r'disagree[.:]?\s*(.+)',
-            r'다른 의견[.:]?\s*(.+)',
-            r'however[,]?\s*(.+)',
-            r'but[,]?\s*(.+)',
-            r'그러나[,]?\s*(.+)',
+            r"동의하지 않[습니다는][.:]?\s*(.+)",
+            r"disagree[.:]?\s*(.+)",
+            r"다른 의견[.:]?\s*(.+)",
+            r"however[,]?\s*(.+)",
+            r"but[,]?\s*(.+)",
+            r"그러나[,]?\s*(.+)",
         ]
 
         import re
@@ -178,12 +175,12 @@ class Synthesizer:
         recommendations = []
 
         recommendation_patterns = [
-            r'추천[합니다하면][.:]?\s*(.+)',
-            r'recommend[s]?[.:]?\s*(.+)',
-            r'제안[합니다하면][.:]?\s*(.+)',
-            r'suggest[s]?[.:]?\s*(.+)',
-            r'should[:]?\s*(.+)',
-            r'~해야\s*합니다[.:]?\s*(.+)',
+            r"추천[합니다하면][.:]?\s*(.+)",
+            r"recommend[s]?[.:]?\s*(.+)",
+            r"제안[합니다하면][.:]?\s*(.+)",
+            r"suggest[s]?[.:]?\s*(.+)",
+            r"should[:]?\s*(.+)",
+            r"~해야\s*합니다[.:]?\s*(.+)",
         ]
 
         import re
@@ -212,9 +209,7 @@ class Synthesizer:
 
         # Opening
         ai_count = len(context.ai_message_counts)
-        parts.append(
-            f"{ai_count}개의 AI가 {context.current_round}라운드에 걸쳐 토론했습니다."
-        )
+        parts.append(f"{ai_count}개의 AI가 {context.current_round}라운드에 걸쳐 토론했습니다.")
 
         # Consensus status
         if context.consensus_reached:
@@ -236,7 +231,7 @@ class Synthesizer:
 
         # Truncate if too long
         if len(summary) > self.max_summary_length:
-            summary = summary[:self.max_summary_length - 3] + "..."
+            summary = summary[: self.max_summary_length - 3] + "..."
 
         return summary
 
@@ -260,26 +255,26 @@ class Synthesizer:
         lines.append(f"\n{result.summary}\n")
 
         # Stats
-        lines.append(f"📈 통계:")
+        lines.append("📈 통계:")
         lines.append(f"  - 총 라운드: {result.total_rounds}")
         lines.append(f"  - 총 메시지: {result.total_messages}")
         lines.append(f"  - 합의 도달: {'✅ 예' if result.consensus_reached else '❌ 아니오'}")
 
         # AI Contributions
         if result.ai_contributions:
-            lines.append(f"\n🤖 AI 기여:")
+            lines.append("\n🤖 AI 기여:")
             for ai_name, count in result.ai_contributions.items():
                 lines.append(f"  - {ai_name}: {count}개 메시지")
 
         # Key Points
         if result.key_points:
-            lines.append(f"\n💡 핵심 포인트:")
+            lines.append("\n💡 핵심 포인트:")
             for i, point in enumerate(result.key_points[:5], 1):
                 lines.append(f"  {i}. {point}")
 
         # Recommendations
         if result.recommendations:
-            lines.append(f"\n📌 권장 사항:")
+            lines.append("\n📌 권장 사항:")
             for rec in result.recommendations[:3]:
                 lines.append(f"  • {rec}")
 

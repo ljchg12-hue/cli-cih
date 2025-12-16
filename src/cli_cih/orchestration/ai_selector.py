@@ -1,7 +1,6 @@
 """AI selection logic for multi-AI discussions."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 from cli_cih.adapters import AIAdapter, get_all_adapters
 from cli_cih.orchestration.task_analyzer import Task, TaskType
@@ -20,6 +19,7 @@ class AIScore:
 @dataclass
 class OllamaInstance:
     """Ollama individual instance for multi-model support."""
+
     model: str
     name: str
     specialty: str
@@ -27,21 +27,21 @@ class OllamaInstance:
 
 # Task-specific Ollama model profiles
 OLLAMA_PROFILES = {
-    'coding': [
-        OllamaInstance('qwen2.5-coder:7b', 'Ollama-Coder', 'code'),
-        OllamaInstance('deepseek-r1:70b', 'Ollama-Reasoner', 'reasoning'),
+    "coding": [
+        OllamaInstance("qwen2.5-coder:7b", "Ollama-Coder", "code"),
+        OllamaInstance("deepseek-r1:70b", "Ollama-Reasoner", "reasoning"),
     ],
-    'analysis': [
-        OllamaInstance('llama3.1:70b', 'Ollama-Analysis', 'analysis'),
-        OllamaInstance('qwen3:32b', 'Ollama-Logic', 'logic'),
-        OllamaInstance('deepseek-r1:32b', 'Ollama-Deep', 'deep_thinking'),
+    "analysis": [
+        OllamaInstance("llama3.1:70b", "Ollama-Analysis", "analysis"),
+        OllamaInstance("qwen3:32b", "Ollama-Logic", "logic"),
+        OllamaInstance("deepseek-r1:32b", "Ollama-Deep", "deep_thinking"),
     ],
-    'creative': [
-        OllamaInstance('llama3.3:latest', 'Ollama-Creative', 'creative'),
-        OllamaInstance('mistral:7b', 'Ollama-Fast', 'speed'),
+    "creative": [
+        OllamaInstance("llama3.3:latest", "Ollama-Creative", "creative"),
+        OllamaInstance("mistral:7b", "Ollama-Fast", "speed"),
     ],
-    'default': [
-        OllamaInstance('llama3.1:70b', 'Ollama-Main', 'general'),
+    "default": [
+        OllamaInstance("llama3.1:70b", "Ollama-Main", "general"),
     ],
 }
 
@@ -119,7 +119,7 @@ class AISelector:
     async def select(
         self,
         task: Task,
-        available_adapters: Optional[list[AIAdapter]] = None,
+        available_adapters: list[AIAdapter] | None = None,
     ) -> list[AIAdapter]:
         """Select AIs for a task - 4 base AIs + multiple Ollama models.
 
@@ -150,26 +150,26 @@ class AISelector:
         adapter_map = {a.name.lower(): a for a in available_adapters}
 
         # 1. Claude (required)
-        if 'claude' in adapter_map:
-            selected.append(adapter_map['claude'])
+        if "claude" in adapter_map:
+            selected.append(adapter_map["claude"])
 
         # 2. Codex (required)
-        if 'codex' in adapter_map:
-            selected.append(adapter_map['codex'])
+        if "codex" in adapter_map:
+            selected.append(adapter_map["codex"])
 
         # 3. Gemini (required)
-        if 'gemini' in adapter_map:
-            selected.append(adapter_map['gemini'])
+        if "gemini" in adapter_map:
+            selected.append(adapter_map["gemini"])
 
         # 4. Ollama multi-model (2-4 models based on task)
-        ollama_instances = await self._select_ollama_models(task, adapter_map.get('ollama'))
+        ollama_instances = await self._select_ollama_models(task, adapter_map.get("ollama"))
         selected.extend(ollama_instances)
 
         return selected
 
     async def _select_single_ai(
         self,
-        available_adapters: Optional[list[AIAdapter]] = None,
+        available_adapters: list[AIAdapter] | None = None,
     ) -> list[AIAdapter]:
         """Select single AI (Claude preferred) for simple tasks."""
         if available_adapters is None:
@@ -184,7 +184,7 @@ class AISelector:
 
         # Prefer Claude
         for adapter in available_adapters:
-            if adapter.name.lower() == 'claude':
+            if adapter.name.lower() == "claude":
                 return [adapter]
 
         # Fallback to first available
@@ -193,7 +193,7 @@ class AISelector:
     async def _select_ollama_models(
         self,
         task: Task,
-        base_ollama: Optional[AIAdapter] = None,
+        base_ollama: AIAdapter | None = None,
     ) -> list[AIAdapter]:
         """Select multiple Ollama models based on task type.
 
@@ -215,15 +215,15 @@ class AISelector:
 
         # Select profile based on task type
         if task.task_type in [TaskType.CODE, TaskType.DEBUG]:
-            profile_key = 'coding'
+            profile_key = "coding"
         elif task.task_type in [TaskType.ANALYSIS, TaskType.RESEARCH]:
-            profile_key = 'analysis'
+            profile_key = "analysis"
         elif task.task_type == TaskType.CREATIVE:
-            profile_key = 'creative'
+            profile_key = "creative"
         else:
-            profile_key = 'default'
+            profile_key = "default"
 
-        profiles = OLLAMA_PROFILES.get(profile_key, OLLAMA_PROFILES['default'])
+        profiles = OLLAMA_PROFILES.get(profile_key, OLLAMA_PROFILES["default"])
 
         # Determine model count based on complexity
         if task.complexity > 0.7:
@@ -237,6 +237,7 @@ class AISelector:
         instances = []
         for profile in profiles[:count]:
             from cli_cih.adapters.base import AdapterConfig
+
             config = AdapterConfig(model=profile.model)
             adapter = OllamaAdapter(config=config)
             adapter.display_name = profile.name
@@ -279,6 +280,7 @@ class AISelector:
 
         # Slight randomization for variety (±0.05)
         import random
+
         variation = (random.random() - 0.5) * 0.1
 
         final_score = min(1.0, base_score + bonus + variation)
@@ -361,9 +363,7 @@ class AISelector:
         parts.append(f"Selected {len(selected)} AIs:")
 
         for adapter in selected:
-            specialties = self.AI_SPECIALTY_DESCRIPTIONS.get(
-                adapter.name.lower(), ["general"]
-            )
+            specialties = self.AI_SPECIALTY_DESCRIPTIONS.get(adapter.name.lower(), ["general"])
             parts.append(f"  - {adapter.display_name}: {', '.join(specialties[:2])}")
 
         return "\n".join(parts)

@@ -2,7 +2,6 @@
 
 import asyncio
 import sys
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -39,7 +38,7 @@ def version_callback(value: bool) -> None:
 @app.command("ask")
 def ask_command(
     question: str = typer.Argument(..., help="Question to ask the AI"),
-    ai: Optional[str] = typer.Option(
+    ai: str | None = typer.Option(
         None,
         "--ai",
         "-a",
@@ -61,7 +60,7 @@ def main(
         is_eager=True,
         help="Show version and exit",
     ),
-    solo: Optional[str] = typer.Option(
+    solo: str | None = typer.Option(
         None,
         "--solo",
         "-s",
@@ -86,7 +85,11 @@ def main(
 
     # Check if there's a positional argument that looks like a question
     # (for backwards compatibility with 'cih "question"')
-    if len(sys.argv) > 1 and not sys.argv[1].startswith("-") and sys.argv[1] not in ["models", "ask"]:
+    if (
+        len(sys.argv) > 1
+        and not sys.argv[1].startswith("-")
+        and sys.argv[1] not in ["models", "ask"]
+    ):
         # Treat first arg as a question
         question = sys.argv[1]
         ai = None
@@ -101,7 +104,7 @@ def main(
         start_discussion_mode()
 
 
-async def quick_query(question: str, ai_name: Optional[str] = None) -> None:
+async def quick_query(question: str, ai_name: str | None = None) -> None:
     """Execute a quick query to an AI.
 
     Args:
@@ -130,7 +133,8 @@ async def quick_query(question: str, ai_name: Optional[str] = None) -> None:
             console.print("[dim]설치: claude, codex, gemini 또는 ollama serve 실행[/dim]")
             return
 
-    console.print(f"\n[dim]Using:[/dim] [{adapter.color}]{adapter.icon} {adapter.display_name}[/{adapter.color}]")
+    ai_info = f"[{adapter.color}]{adapter.icon} {adapter.display_name}[/{adapter.color}]"
+    console.print(f"\n[dim]Using:[/dim] {ai_info}")
     console.print(f"[dim]Question:[/dim] {question}\n")
 
     try:

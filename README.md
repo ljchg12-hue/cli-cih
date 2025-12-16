@@ -5,6 +5,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/cli-cih.svg)](https://badge.fury.io/py/cli-cih)
+[![Tests](https://img.shields.io/badge/tests-205%20passed-success.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-1.1.0-brightgreen.svg)](CHANGELOG.md)
 
 ## Features
 
@@ -208,7 +210,7 @@ cli-cih/
 │   │   ├── retry.py           # Retry & circuit breaker
 │   │   └── text.py            # Text utilities
 │   └── main.py                # Entry point
-└── tests/                     # Test suite (168+ tests)
+└── tests/                     # Test suite (205 tests)
 ```
 
 ## Examples

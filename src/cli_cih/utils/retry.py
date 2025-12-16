@@ -2,15 +2,15 @@
 
 import asyncio
 import functools
-import logging
 import random
-from typing import Any, Callable, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, TypeVar
 
 from cli_cih.utils.logging import get_logger
 
 logger = get_logger(__name__)
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 class RetryConfig:
@@ -23,7 +23,7 @@ class RetryConfig:
         max_delay: float = 30.0,
         exponential_base: float = 2.0,
         jitter: bool = True,
-        retry_on: Optional[tuple[type[Exception], ...]] = None,
+        retry_on: tuple[type[Exception], ...] | None = None,
     ):
         """Initialize retry config.
 
@@ -57,7 +57,7 @@ def calculate_delay(
         Delay in seconds.
     """
     delay = min(
-        config.base_delay * (config.exponential_base ** attempt),
+        config.base_delay * (config.exponential_base**attempt),
         config.max_delay,
     )
 
@@ -72,8 +72,8 @@ def calculate_delay(
 async def retry_async(
     func: Callable[..., Any],
     *args,
-    config: Optional[RetryConfig] = None,
-    on_retry: Optional[Callable[[int, Exception], None]] = None,
+    config: RetryConfig | None = None,
+    on_retry: Callable[[int, Exception], None] | None = None,
     **kwargs,
 ) -> Any:
     """Execute an async function with retry logic.
@@ -92,7 +92,7 @@ async def retry_async(
         The last exception if all retries fail.
     """
     config = config or RetryConfig()
-    last_exception: Optional[Exception] = None
+    last_exception: Exception | None = None
 
     for attempt in range(config.max_retries + 1):
         try:
@@ -125,7 +125,7 @@ async def retry_async(
 def with_retry(
     max_retries: int = 3,
     base_delay: float = 1.0,
-    retry_on: Optional[tuple[type[Exception], ...]] = None,
+    retry_on: tuple[type[Exception], ...] | None = None,
 ) -> Callable:
     """Decorator to add retry logic to an async function.
 
@@ -174,7 +174,7 @@ class CircuitBreaker:
         self.half_open_requests = half_open_requests
 
         self._failure_count = 0
-        self._last_failure_time: Optional[float] = None
+        self._last_failure_time: float | None = None
         self._state = "closed"  # closed, open, half_open
         self._half_open_count = 0
 
@@ -271,7 +271,7 @@ class CircuitBreaker:
             self.record_success()
             return result
 
-        except Exception as e:
+        except Exception:
             self.record_failure()
             raise
 
@@ -296,20 +296,28 @@ def format_error_message(error: Exception, adapter_name: str = "") -> str:
     error_msg = str(error)
 
     # Common error patterns
+    suffix = f" to {adapter_name}" if adapter_name else ""
     if "connection" in error_msg.lower() or "connect" in error_msg.lower():
-        return f"Connection failed{' to ' + adapter_name if adapter_name else ''}. Check your network connection."
+        return f"Connection failed{suffix}. Check your network connection."
 
+    suffix = f" for {adapter_name}" if adapter_name else ""
     if "timeout" in error_msg.lower():
-        return f"Request timed out{' for ' + adapter_name if adapter_name else ''}. The service may be slow or unavailable."
+        return f"Request timed out{suffix}. The service may be slow or unavailable."
 
-    if "authentication" in error_msg.lower() or "auth" in error_msg.lower() or "api key" in error_msg.lower():
-        return f"Authentication failed{' for ' + adapter_name if adapter_name else ''}. Check your API key or credentials."
+    if (
+        "authentication" in error_msg.lower()
+        or "auth" in error_msg.lower()
+        or "api key" in error_msg.lower()
+    ):
+        return f"Authentication failed{suffix}. Check your API key or credentials."
 
+    suffix = f" by {adapter_name}" if adapter_name else ""
     if "rate limit" in error_msg.lower() or "too many requests" in error_msg.lower():
-        return f"Rate limited{' by ' + adapter_name if adapter_name else ''}. Please wait before trying again."
+        return f"Rate limited{suffix}. Please wait before trying again."
 
+    suffix = f" on {adapter_name}" if adapter_name else ""
     if "not found" in error_msg.lower():
-        return f"Resource not found{' on ' + adapter_name if adapter_name else ''}. Check that the service is properly installed."
+        return f"Resource not found{suffix}. Check the service is properly installed."
 
     # Default: Include error type and message
     prefix = f"[{adapter_name}] " if adapter_name else ""

@@ -1,9 +1,7 @@
 """Logging configuration for CLI-CIH."""
 
 import logging
-import sys
 from pathlib import Path
-from typing import Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -14,8 +12,8 @@ DEFAULT_LOG_DIR = Path.home() / ".local" / "share" / "cli-cih" / "logs"
 
 def setup_logging(
     level: str = "INFO",
-    log_file: Optional[str] = None,
-    console: Optional[Console] = None,
+    log_file: str | None = None,
+    console: Console | None = None,
 ) -> None:
     """Set up logging configuration.
 
@@ -51,10 +49,12 @@ def setup_logging(
     # File handler (for detailed logs)
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
     file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    ))
+    file_handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+    )
     handlers.append(file_handler)
 
     # Configure root logger
@@ -135,7 +135,7 @@ def log_adapter_call(
     method: str,
     success: bool,
     duration_ms: float,
-    error: Optional[str] = None,
+    error: str | None = None,
 ) -> None:
     """Log an adapter call for analytics.
 
@@ -149,20 +149,16 @@ def log_adapter_call(
     logger = get_logger("cli_cih.adapters")
 
     if success:
-        logger.debug(
-            f"Adapter call: {adapter_name}.{method} - "
-            f"SUCCESS ({duration_ms:.0f}ms)"
-        )
+        logger.debug(f"Adapter call: {adapter_name}.{method} - SUCCESS ({duration_ms:.0f}ms)")
     else:
         logger.warning(
-            f"Adapter call: {adapter_name}.{method} - "
-            f"FAILED ({duration_ms:.0f}ms): {error}"
+            f"Adapter call: {adapter_name}.{method} - FAILED ({duration_ms:.0f}ms): {error}"
         )
 
 
 def log_discussion_event(
     event_type: str,
-    details: Optional[dict] = None,
+    details: dict | None = None,
 ) -> None:
     """Log a discussion event for analytics.
 

@@ -1,8 +1,8 @@
 """Main coordinator for multi-AI discussions."""
 
 import asyncio
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import AsyncIterator, Awaitable, Callable, Optional
 
 from cli_cih.adapters import AIAdapter
 from cli_cih.orchestration.ai_selector import AISelector
@@ -10,7 +10,6 @@ from cli_cih.orchestration.approval import (
     Action,
     ApprovalEngine,
     ApprovalResult,
-    ApprovalStatus,
     ImportanceLevel,
 )
 from cli_cih.orchestration.conflict import (
@@ -59,18 +58,21 @@ __all__ = [
 # Base event class
 class Event:
     """Base class for coordinator events."""
+
     pass
 
 
 @dataclass
 class TaskAnalyzedEvent(Event):
     """Emitted when task analysis is complete."""
+
     task: Task
 
 
 @dataclass
 class AIsSelectedEvent(Event):
     """Emitted when AIs are selected."""
+
     adapters: list[AIAdapter]
     explanation: str
 
@@ -78,6 +80,7 @@ class AIsSelectedEvent(Event):
 @dataclass
 class AIStartEvent(Event):
     """Emitted when an AI starts responding."""
+
     ai_name: str
     ai_icon: str
     ai_color: str
@@ -86,6 +89,7 @@ class AIStartEvent(Event):
 @dataclass
 class AIEndEvent(Event):
     """Emitted when an AI finishes responding."""
+
     ai_name: str
     response: str
 
@@ -93,12 +97,14 @@ class AIEndEvent(Event):
 @dataclass
 class ConsensusReachedEvent(Event):
     """Emitted when consensus is reached."""
+
     round_num: int
 
 
 @dataclass
 class ConflictDetectedEvent(Event):
     """Emitted when AI conflict is detected."""
+
     conflict: Conflict
     resolution: Resolution
 
@@ -106,14 +112,16 @@ class ConflictDetectedEvent(Event):
 @dataclass
 class ConflictResolvedEvent(Event):
     """Emitted when conflict is resolved."""
+
     conflict: Conflict
     resolution: Resolution
-    user_choice: Optional[str] = None
+    user_choice: str | None = None
 
 
 @dataclass
 class ApprovalRequestedEvent(Event):
     """Emitted when user approval is needed."""
+
     action: Action
     importance: ImportanceLevel
 
@@ -121,12 +129,14 @@ class ApprovalRequestedEvent(Event):
 @dataclass
 class ApprovalResultEvent(Event):
     """Emitted with approval result."""
+
     result: ApprovalResult
 
 
 @dataclass
 class ResultEvent(Event):
     """Emitted with final results."""
+
     result: SynthesisResult
     context: SharedContext
 
@@ -145,7 +155,7 @@ class Coordinator:
 
     def __init__(
         self,
-        discussion_config: Optional[DiscussionConfig] = None,
+        discussion_config: DiscussionConfig | None = None,
         min_ais: int = 2,
         max_ais: int = 4,
         enable_conflict_detection: bool = True,
@@ -164,21 +174,25 @@ class Coordinator:
         self.selector = AISelector(min_ais=min_ais, max_ais=max_ais)
         self.discussion = DiscussionManager(discussion_config)
         self.synthesizer = Synthesizer()
-        self.conflict_resolver: Optional[ConflictResolver] = None
+        self.conflict_resolver: ConflictResolver | None = None
         self.approval_engine = ApprovalEngine()
 
         self.enable_conflict_detection = enable_conflict_detection
         self.enable_approval = enable_approval
 
-        self._current_task: Optional[Task] = None
+        self._current_task: Task | None = None
         self._current_adapters: list[AIAdapter] = []
-        self._context: Optional[SharedContext] = None
-        self._detected_conflict: Optional[Conflict] = None
-        self._conflict_resolution: Optional[Resolution] = None
+        self._context: SharedContext | None = None
+        self._detected_conflict: Conflict | None = None
+        self._conflict_resolution: Resolution | None = None
 
         # Callbacks for interactive conflict/approval handling
-        self._conflict_callback: Optional[Callable[[Conflict, Resolution], Awaitable[str]]] = None
-        self._approval_callback: Optional[Callable[[Action, ImportanceLevel], Awaitable[ApprovalResult]]] = None
+        self._conflict_callback: (
+            Callable[[Conflict, Resolution], Awaitable[str]] | None
+        ) = None
+        self._approval_callback: (
+            Callable[[Action, ImportanceLevel], Awaitable[ApprovalResult]] | None
+        ) = None
 
     @staticmethod
     async def check_adapters_parallel(
@@ -194,6 +208,7 @@ class Coordinator:
         Returns:
             List of available adapters.
         """
+
         async def check_with_timeout(adapter: AIAdapter) -> tuple[AIAdapter, bool]:
             try:
                 result = await asyncio.wait_for(
@@ -246,7 +261,7 @@ class Coordinator:
     async def process(
         self,
         user_input: str,
-        available_adapters: Optional[list[AIAdapter]] = None,
+        available_adapters: list[AIAdapter] | None = None,
     ) -> AsyncIterator[Event]:
         """Process a user input through the full discussion pipeline.
 
@@ -313,8 +328,10 @@ class Coordinator:
                         yield conflict_event
 
                         # If user decision needed, yield resolution event
-                        if (self._conflict_resolution and
-                            self._conflict_resolution.type == ResolutionType.USER_DECISION):
+                        if (
+                            self._conflict_resolution
+                            and self._conflict_resolution.type == ResolutionType.USER_DECISION
+                        ):
                             resolution_event = await self._handle_conflict_resolution()
                             if resolution_event:
                                 yield resolution_event
@@ -323,7 +340,7 @@ class Coordinator:
         result = await self.synthesizer.synthesize(self._context)
         yield ResultEvent(result=result, context=self._context)
 
-    async def _check_for_conflict(self) -> Optional[ConflictDetectedEvent]:
+    async def _check_for_conflict(self) -> ConflictDetectedEvent | None:
         """Check for conflicts in the current discussion.
 
         Returns:
@@ -346,7 +363,7 @@ class Coordinator:
 
         return None
 
-    async def _handle_conflict_resolution(self) -> Optional[ConflictResolvedEvent]:
+    async def _handle_conflict_resolution(self) -> ConflictResolvedEvent | None:
         """Handle conflict resolution, potentially with user input.
 
         Returns:
@@ -358,15 +375,17 @@ class Coordinator:
         user_choice = None
 
         # If user decision needed and callback available
-        if (self._conflict_resolution.type == ResolutionType.USER_DECISION and
-            self._conflict_callback):
+        if (
+            self._conflict_resolution.type == ResolutionType.USER_DECISION
+            and self._conflict_callback
+        ):
             user_choice = await self._conflict_callback(
                 self._detected_conflict,
                 self._conflict_resolution,
             )
 
             # Update context with user's decision
-            if user_choice and user_choice != 'more':
+            if user_choice and user_choice != "more":
                 self._context.add_key_point(f"User chose: {user_choice}")
 
         return ConflictResolvedEvent(
@@ -435,7 +454,7 @@ class Coordinator:
     async def _fast_single_ai_response(
         self,
         user_input: str,
-        available_adapters: Optional[list[AIAdapter]] = None,
+        available_adapters: list[AIAdapter] | None = None,
     ) -> AsyncIterator[Event]:
         """Fast path for simple queries using a single AI.
 
@@ -499,8 +518,11 @@ class Coordinator:
 
                 # Minimal result
                 from cli_cih.orchestration.synthesizer import SynthesisResult
+
                 result = SynthesisResult(
-                    summary=full_response[:200] + "..." if len(full_response) > 200 else full_response,
+                    summary=full_response[:200] + "..."
+                    if len(full_response) > 200
+                    else full_response,
                     key_points=[],
                     agreements=[],
                     disagreements=[],
@@ -522,10 +544,11 @@ class Coordinator:
 
                 # Invalidate cache for failed adapter
                 from cli_cih.adapters import AIAdapter as BaseAdapter
+
                 BaseAdapter.invalidate_cache(adapter.name)
 
                 # Continue to next adapter (graceful degradation)
-                remaining = available_adapters[available_adapters.index(adapter) + 1:]
+                remaining = available_adapters[available_adapters.index(adapter) + 1 :]
                 if remaining:
                     continue
                 else:

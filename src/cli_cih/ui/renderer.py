@@ -1,6 +1,5 @@
 """Rich console rendering for CLI-CIH."""
 
-from typing import Optional
 
 from rich.console import Console
 from rich.markdown import Markdown
@@ -10,7 +9,7 @@ from rich.text import Text
 from cli_cih.ui.themes import AI_COLORS
 
 # Singleton console instance
-_console: Optional[Console] = None
+_console: Console | None = None
 
 
 def get_console() -> Console:

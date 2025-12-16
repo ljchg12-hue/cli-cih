@@ -2,7 +2,7 @@
 
 import asyncio
 import os
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 from cli_cih.adapters.base import (
     AdapterConfig,
@@ -22,7 +22,7 @@ class CodexAdapter(AIAdapter):
     color = "bright_green"
     icon = "🟢"
 
-    def __init__(self, config: Optional[AdapterConfig] = None):
+    def __init__(self, config: AdapterConfig | None = None):
         """Initialize Codex adapter."""
         super().__init__(config)
         self._command = "codex"
@@ -60,18 +60,18 @@ class CodexAdapter(AIAdapter):
 
         # Non-interactive environment variables
         env = os.environ.copy()
-        env['TERM'] = 'dumb'  # Disable terminal features
-        env['NO_COLOR'] = '1'  # Disable color output
-        env['CI'] = '1'  # CI mode (non-interactive)
-        env['FORCE_COLOR'] = '0'  # Force no color
-        env['CODEX_QUIET'] = '1'  # Quiet mode
+        env["TERM"] = "dumb"  # Disable terminal features
+        env["NO_COLOR"] = "1"  # Disable color output
+        env["CI"] = "1"  # CI mode (non-interactive)
+        env["FORCE_COLOR"] = "0"  # Force no color
+        env["CODEX_QUIET"] = "1"  # Quiet mode
 
         try:
             # Use exec --skip-git-repo-check for non-interactive execution
             proc = await asyncio.create_subprocess_exec(
                 self._command,
-                'exec',  # exec subcommand
-                '--skip-git-repo-check',  # Skip git repo check
+                "exec",  # exec subcommand
+                "--skip-git-repo-check",  # Skip git repo check
                 prompt,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
@@ -82,13 +82,10 @@ class CodexAdapter(AIAdapter):
             buffer = ""
             while True:
                 try:
-                    chunk = await asyncio.wait_for(
-                        proc.stdout.read(1024),
-                        timeout=1.0
-                    )
+                    chunk = await asyncio.wait_for(proc.stdout.read(1024), timeout=1.0)
                     if not chunk:
                         break
-                    decoded = chunk.decode('utf-8', errors='ignore')
+                    decoded = chunk.decode("utf-8", errors="ignore")
                     clean_chunk = clean_ansi(decoded)
                     if clean_chunk:
                         yield clean_chunk
@@ -106,15 +103,17 @@ class CodexAdapter(AIAdapter):
             if not buffer:
                 stderr = await proc.stderr.read()
                 if stderr:
-                    error_msg = stderr.decode('utf-8', errors='ignore').strip()
+                    error_msg = stderr.decode("utf-8", errors="ignore").strip()
                     # Filter out cursor/terminal errors
-                    if error_msg and 'cursor' not in error_msg.lower():
+                    if error_msg and "cursor" not in error_msg.lower():
                         yield f"[Codex 경고: {error_msg}]"
 
-        except asyncio.TimeoutError:
-            raise AdapterTimeoutError(f"Codex CLI 응답 시간 초과 ({self.config.timeout}초)")
+        except asyncio.TimeoutError as err:
+            raise AdapterTimeoutError(
+                f"Codex CLI 응답 시간 초과 ({self.config.timeout}초)"
+            ) from err
         except Exception as e:
-            raise AdapterError(f"Codex CLI 오류: {e}")
+            raise AdapterError(f"Codex CLI 오류: {e}") from e
 
     async def send_fallback(self, prompt: str) -> AsyncIterator[str]:
         """Fallback method using simple subprocess without streaming.
@@ -126,8 +125,8 @@ class CodexAdapter(AIAdapter):
             Response as single chunk.
         """
         env = os.environ.copy()
-        env['TERM'] = 'dumb'
-        env['NO_COLOR'] = '1'
+        env["TERM"] = "dumb"
+        env["NO_COLOR"] = "1"
 
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -138,13 +137,10 @@ class CodexAdapter(AIAdapter):
                 env=env,
             )
 
-            stdout, stderr = await asyncio.wait_for(
-                proc.communicate(),
-                timeout=self.config.timeout
-            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=self.config.timeout)
 
             if stdout:
-                result = clean_ansi(stdout.decode('utf-8', errors='ignore'))
+                result = clean_ansi(stdout.decode("utf-8", errors="ignore"))
                 if result:
                     yield result
 
@@ -152,6 +148,6 @@ class CodexAdapter(AIAdapter):
                 yield f"[Codex 에러: {stderr.decode('utf-8', errors='ignore')}]"
 
         except asyncio.TimeoutError:
-            yield '[Codex 응답 시간 초과]'
+            yield "[Codex 응답 시간 초과]"
         except Exception as e:
-            yield f'[Codex 에러: {e}]'
+            yield f"[Codex 에러: {e}]"

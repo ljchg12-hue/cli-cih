@@ -5,6 +5,49 @@ All notable changes to CLI-CIH will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-12-16
+
+### Added
+- **MCP Server Enhancement** (17 tools total)
+  - `cih_analyze`: Task analysis and AI routing
+  - `cih_compare`: Multi-AI response comparison
+  - `cih_smart`: Smart routing based on task type
+  - `cih_quick`: Fast single AI response
+  - `cih_history_detail`: Session detail retrieval
+  - `cih_models`: List available models
+  - `cih_stats`: Usage statistics
+
+- **Docker Gateway Integration**
+  - `cih_gateway_status`: Connection status check
+  - `cih_gateway_find`: Search MCP servers
+  - `cih_gateway_tools`: List server tools
+  - `cih_gateway_exec`: Execute MCP tool
+  - `cih_gateway_multi_exec`: Parallel tool execution
+
+- **Standardized Response Schema**
+  - All tools return consistent `{success, data, error, metadata}` format
+  - Duration tracking in metadata
+  - AI source attribution
+
+### Changed
+- MCP server architecture refactored for maintainability
+- Removed duplicate code across MCP tools
+- Improved error handling with proper exception chaining (B904)
+- Enhanced type annotations throughout codebase
+
+### Fixed
+- Lint issues (ruff): 25+ issues resolved
+- Mutable default argument in `cih_compare` (B006)
+- Unused imports and variables removed
+- Line length violations fixed
+
+### Testing
+- 205 tests passing
+- Core module coverage: context 90%, task_analyzer 93%, models 92%
+- History module coverage: 83%
+
+---
+
 ## [1.0.0] - 2025-12-16
 
 ### Added

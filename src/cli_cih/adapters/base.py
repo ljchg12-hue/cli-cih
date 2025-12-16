@@ -4,8 +4,9 @@ import asyncio
 import logging
 import time
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, ClassVar, Optional
+from typing import Any, ClassVar
 
 
 class AdapterError(Exception):
@@ -44,8 +45,8 @@ class AdapterConfig:
 
     timeout: int = 60
     max_tokens: int = 4096
-    model: Optional[str] = None
-    endpoint: Optional[str] = None
+    model: str | None = None
+    endpoint: str | None = None
     max_retries: int = 3
     retry_delay: float = 1.0
     extra: dict = field(default_factory=dict)
@@ -56,10 +57,10 @@ class AdapterResponse:
     """Response from an adapter."""
 
     content: str
-    model: Optional[str] = None
-    tokens_used: Optional[int] = None
-    elapsed_time: Optional[float] = None
-    raw_response: Optional[dict] = None
+    model: str | None = None
+    tokens_used: int | None = None
+    elapsed_time: float | None = None
+    raw_response: dict | None = None
 
 
 class AIAdapter(ABC):
@@ -79,7 +80,7 @@ class AIAdapter(ABC):
     _availability_cache: ClassVar[dict[str, tuple[bool, float]]] = {}
     CACHE_TTL: ClassVar[float] = 30.0  # 30초 캐시
 
-    def __init__(self, config: Optional[AdapterConfig] = None):
+    def __init__(self, config: AdapterConfig | None = None):
         """Initialize the adapter.
 
         Args:
@@ -231,7 +232,7 @@ class AIAdapter(ABC):
             AdapterError: If all retries fail.
         """
         logger = logging.getLogger(f"cli_cih.adapters.{self.name}")
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         for attempt in range(self.config.max_retries + 1):
             try:
@@ -240,7 +241,7 @@ class AIAdapter(ABC):
             except (AdapterTimeoutError, AdapterConnectionError) as e:
                 last_error = e
                 if attempt < self.config.max_retries:
-                    delay = self.config.retry_delay * (2 ** attempt)
+                    delay = self.config.retry_delay * (2**attempt)
                     logger.warning(
                         f"[{self.display_name}] {operation_name} failed (attempt {attempt + 1}/"
                         f"{self.config.max_retries + 1}): {e}. Retrying in {delay:.1f}s..."
@@ -255,10 +256,8 @@ class AIAdapter(ABC):
             except AdapterRateLimitError as e:
                 last_error = e
                 # Wait longer for rate limits
-                delay = min(30.0, self.config.retry_delay * (3 ** attempt))
-                logger.warning(
-                    f"[{self.display_name}] Rate limited. Waiting {delay:.1f}s..."
-                )
+                delay = min(30.0, self.config.retry_delay * (3**attempt))
+                logger.warning(f"[{self.display_name}] Rate limited. Waiting {delay:.1f}s...")
                 await asyncio.sleep(delay)
 
             except AdapterError:

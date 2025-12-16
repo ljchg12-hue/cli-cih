@@ -1,8 +1,6 @@
 """Panel components for CLI-CIH UI."""
 
-from typing import Optional
 
-from rich.console import Group
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -13,7 +11,7 @@ from cli_cih.ui.themes import AI_COLORS
 def create_ai_panel(
     ai_name: str,
     content: str,
-    subtitle: Optional[str] = None,
+    subtitle: str | None = None,
 ) -> Panel:
     """Create a styled panel for AI response.
 

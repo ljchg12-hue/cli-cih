@@ -1,17 +1,17 @@
 """Approval system for multi-AI actions."""
 
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Awaitable, Callable, Optional
 
 
 class ImportanceLevel(str, Enum):
     """Importance levels for actions."""
 
-    LOW = "low"          # Auto-approved
-    MEDIUM = "medium"    # Notification, can auto-approve
-    HIGH = "high"        # Requires explicit approval
+    LOW = "low"  # Auto-approved
+    MEDIUM = "medium"  # Notification, can auto-approve
+    HIGH = "high"  # Requires explicit approval
     CRITICAL = "critical"  # Must confirm with details
 
 
@@ -103,28 +103,28 @@ class ApprovalResult:
 
 # Dangerous patterns in commands
 DANGEROUS_PATTERNS = [
-    r'\brm\s+-rf\b',
-    r'\brm\s+.*\*',
-    r'\bsudo\b',
-    r'\bchmod\s+777\b',
-    r'\bdrop\s+database\b',
-    r'\btruncate\b',
-    r'\bformat\b',
-    r'\bfdisk\b',
-    r'>\s*/dev/',
-    r'\bdd\s+if=',
+    r"\brm\s+-rf\b",
+    r"\brm\s+.*\*",
+    r"\bsudo\b",
+    r"\bchmod\s+777\b",
+    r"\bdrop\s+database\b",
+    r"\btruncate\b",
+    r"\bformat\b",
+    r"\bfdisk\b",
+    r">\s*/dev/",
+    r"\bdd\s+if=",
 ]
 
 # Sensitive file patterns
 SENSITIVE_FILES = [
-    r'\.env',
-    r'\.git/',
-    r'\.ssh/',
-    r'credentials',
-    r'secrets?\.ya?ml',
-    r'config\.ya?ml',
-    r'package-lock\.json',
-    r'yarn\.lock',
+    r"\.env",
+    r"\.git/",
+    r"\.ssh/",
+    r"credentials",
+    r"secrets?\.ya?ml",
+    r"config\.ya?ml",
+    r"package-lock\.json",
+    r"yarn\.lock",
 ]
 
 
@@ -144,7 +144,9 @@ class ApprovalEngine:
         """
         self.auto_approve_low = auto_approve_low
         self.auto_approve_medium = auto_approve_medium
-        self._approval_callback: Optional[Callable[[Action, ImportanceLevel], Awaitable[ApprovalResult]]] = None
+        self._approval_callback: (
+            Callable[[Action, ImportanceLevel], Awaitable[ApprovalResult]] | None
+        ) = None
 
     def set_approval_callback(
         self,
@@ -289,9 +291,9 @@ class ApprovalEngine:
 
         # Detect file creation
         file_create_patterns = [
-            r'create\s+(?:file|files?)?\s*[:\s]+([^\n]+)',
-            r'생성[:\s]+([^\n]+)',
-            r'```[\w]*\n.*?```',  # Code blocks might indicate file content
+            r"create\s+(?:file|files?)?\s*[:\s]+([^\n]+)",
+            r"생성[:\s]+([^\n]+)",
+            r"```[\w]*\n.*?```",  # Code blocks might indicate file content
         ]
 
         files_to_create = []
@@ -300,20 +302,22 @@ class ApprovalEngine:
             files_to_create.extend(matches)
 
         if files_to_create:
-            actions.append(Action(
-                action_type=ActionType.FILE_CREATE,
-                description="Create files",
-                files_to_create=files_to_create[:10],  # Limit
-                modifies_files=True,
-                reversible=True,
-            ))
+            actions.append(
+                Action(
+                    action_type=ActionType.FILE_CREATE,
+                    description="Create files",
+                    files_to_create=files_to_create[:10],  # Limit
+                    modifies_files=True,
+                    reversible=True,
+                )
+            )
 
         # Detect command execution
         command_patterns = [
-            r'run[:\s]+`([^`]+)`',
-            r'execute[:\s]+`([^`]+)`',
-            r'실행[:\s]+`([^`]+)`',
-            r'```(?:bash|sh|shell)\n([^`]+)```',
+            r"run[:\s]+`([^`]+)`",
+            r"execute[:\s]+`([^`]+)`",
+            r"실행[:\s]+`([^`]+)`",
+            r"```(?:bash|sh|shell)\n([^`]+)```",
         ]
 
         commands = []
@@ -340,21 +344,23 @@ class ApprovalEngine:
 
         # Detect package installation
         install_patterns = [
-            r'npm\s+install\s+([^\n]+)',
-            r'pip\s+install\s+([^\n]+)',
-            r'yarn\s+add\s+([^\n]+)',
+            r"npm\s+install\s+([^\n]+)",
+            r"pip\s+install\s+([^\n]+)",
+            r"yarn\s+add\s+([^\n]+)",
         ]
 
         for pattern in install_patterns:
             matches = re.findall(pattern, ai_response, re.IGNORECASE)
             if matches:
-                actions.append(Action(
-                    action_type=ActionType.INSTALL_PACKAGE,
-                    description=f"Install packages: {', '.join(matches[:5])}",
-                    executes_commands=True,
-                    reversible=True,
-                    commands_to_execute=[f"Install: {m}" for m in matches[:5]],
-                ))
+                actions.append(
+                    Action(
+                        action_type=ActionType.INSTALL_PACKAGE,
+                        description=f"Install packages: {', '.join(matches[:5])}",
+                        executes_commands=True,
+                        reversible=True,
+                        commands_to_execute=[f"Install: {m}" for m in matches[:5]],
+                    )
+                )
                 break
 
         return actions
@@ -375,7 +381,7 @@ class ApprovalEngine:
         Returns:
             Configured Action.
         """
-        action_type = kwargs.pop('action_type', ActionType.SUGGESTION)
+        action_type = kwargs.pop("action_type", ActionType.SUGGESTION)
 
         action = Action(
             action_type=action_type,

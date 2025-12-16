@@ -1,10 +1,9 @@
 """PTY session management for CLI-based AI tools."""
 
 import asyncio
-import re
 import shutil
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import AsyncIterator, Optional
 
 import pexpect
 from pexpect import EOF, TIMEOUT
@@ -18,7 +17,7 @@ class PTYConfig:
     args: list[str]
     timeout: int = 60
     encoding: str = "utf-8"
-    prompt_pattern: Optional[str] = None
+    prompt_pattern: str | None = None
     end_patterns: list[str] = None
 
     def __post_init__(self):
@@ -40,7 +39,7 @@ class PTYSession:
             config: PTY configuration.
         """
         self.config = config
-        self._process: Optional[pexpect.spawn] = None
+        self._process: pexpect.spawn | None = None
         self._lock = asyncio.Lock()
 
     @property
@@ -87,7 +86,7 @@ class PTYSession:
     async def send_and_stream(
         self,
         text: str,
-        end_patterns: Optional[list[str]] = None,
+        end_patterns: list[str] | None = None,
     ) -> AsyncIterator[str]:
         """Send text and stream the response.
 
@@ -130,7 +129,7 @@ class PTYManager:
     """Manager for creating and handling PTY sessions."""
 
     @staticmethod
-    def find_executable(name: str) -> Optional[str]:
+    def find_executable(name: str) -> str | None:
         """Find an executable in PATH.
 
         Args:
@@ -144,7 +143,7 @@ class PTYManager:
     @staticmethod
     async def run_command(
         command: str,
-        args: Optional[list[str]] = None,
+        args: list[str] | None = None,
         timeout: int = 60,
     ) -> AsyncIterator[str]:
         """Run a command and stream its output.
@@ -185,7 +184,7 @@ class PTYManager:
     @staticmethod
     async def run_and_capture(
         command: str,
-        args: Optional[list[str]] = None,
+        args: list[str] | None = None,
         timeout: int = 30,
     ) -> tuple[str, int]:
         """Run a command and capture all output.
@@ -223,7 +222,7 @@ class PTYManager:
     async def get_command_version(
         command: str,
         version_arg: str = "--version",
-    ) -> Optional[str]:
+    ) -> str | None:
         """Get the version of a command.
 
         Args:

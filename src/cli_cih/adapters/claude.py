@@ -1,7 +1,8 @@
 """Claude CLI adapter for CLI-CIH."""
+
 import asyncio
 import os
-from typing import AsyncIterator, Optional
+from collections.abc import AsyncIterator
 
 from cli_cih.adapters.base import (
     AdapterConfig,
@@ -21,7 +22,7 @@ class ClaudeAdapter(AIAdapter):
     color = "bright_blue"
     icon = "🔵"
 
-    def __init__(self, config: Optional[AdapterConfig] = None):
+    def __init__(self, config: AdapterConfig | None = None):
         """Initialize Claude adapter."""
         super().__init__(config)
         self._command = "claude"
@@ -41,13 +42,14 @@ class ClaudeAdapter(AIAdapter):
             raise AdapterError("Claude CLI를 사용할 수 없습니다")
 
         env = os.environ.copy()
-        env['TERM'] = 'dumb'
-        env['NO_COLOR'] = '1'
+        env["TERM"] = "dumb"
+        env["NO_COLOR"] = "1"
 
         try:
             process = await asyncio.create_subprocess_exec(
                 self._command,
-                "-p", prompt,
+                "-p",
+                prompt,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
@@ -57,17 +59,17 @@ class ClaudeAdapter(AIAdapter):
                 chunk = await process.stdout.read(1024)
                 if not chunk:
                     break
-                text = chunk.decode('utf-8', errors='ignore')
+                text = chunk.decode("utf-8", errors="ignore")
                 clean_chunk = clean_ansi(text)
                 if clean_chunk:
                     yield clean_chunk
 
             await process.wait()
 
-        except asyncio.TimeoutError:
-            raise AdapterTimeoutError("Claude CLI 응답 시간 초과")
+        except asyncio.TimeoutError as err:
+            raise AdapterTimeoutError("Claude CLI 응답 시간 초과") from err
         except Exception as e:
-            raise AdapterError(f"Claude CLI 오류: {e}")
+            raise AdapterError(f"Claude CLI 오류: {e}") from e
 
     async def send_interactive(self, prompt: str) -> AsyncIterator[str]:
         """Send a prompt in interactive mode."""
