@@ -1,11 +1,11 @@
 """Tests for AISelector module."""
 
-import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
 
-from cli_cih.orchestration.ai_selector import AISelector, AIScore, OLLAMA_PROFILES, OllamaInstance
+import pytest
+
+from cli_cih.adapters import ClaudeAdapter, CodexAdapter, GeminiAdapter
+from cli_cih.orchestration.ai_selector import OLLAMA_PROFILES, AIScore, AISelector, OllamaInstance
 from cli_cih.orchestration.task_analyzer import TaskAnalyzer, TaskType
-from cli_cih.adapters import ClaudeAdapter, CodexAdapter, GeminiAdapter, OllamaAdapter
 
 
 class TestAISelector:
@@ -110,7 +110,7 @@ class TestOllamaProfiles:
 
     def test_ollama_profiles_contain_instances(self):
         """Each profile should contain OllamaInstance objects."""
-        for category, instances in OLLAMA_PROFILES.items():
+        for _category, instances in OLLAMA_PROFILES.items():
             assert isinstance(instances, list)
             for instance in instances:
                 assert isinstance(instance, OllamaInstance)

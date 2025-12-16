@@ -2,7 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CollaborationMode(str, Enum):
@@ -82,7 +82,5 @@ class Config(BaseModel):
         default=True, description="Fallback to next AI on error"
     )
 
-    class Config:
-        """Pydantic config."""
-
-        use_enum_values = True
+    # Pydantic V2 configuration (migrated from deprecated class Config)
+    model_config = ConfigDict(use_enum_values=True)

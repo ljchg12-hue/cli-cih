@@ -16,8 +16,9 @@ from cli_cih.adapters.base import (
 class OllamaAdapter(AIAdapter):
     """Adapter for Ollama local LLM server."""
 
-    name = "ollama"
-    display_name = "Ollama"
+    # Class defaults (can be overridden per instance)
+    _default_name = "ollama"
+    _default_display_name = "Ollama"
     color = "bright_magenta"
     icon = "🟣"
 
@@ -44,17 +45,43 @@ class OllamaAdapter(AIAdapter):
         self,
         config: AdapterConfig | None = None,
         use_korean: bool = True,
+        instance_id: str | None = None,
     ):
         """Initialize Ollama adapter.
 
         Args:
             config: Adapter configuration.
             use_korean: Whether to respond in Korean (default: True).
+            instance_id: Unique instance ID for multi-model support.
         """
         super().__init__(config)
         self._endpoint = config.endpoint if config and config.endpoint else self.DEFAULT_ENDPOINT
         self._model = config.model if config and config.model else self.DEFAULT_MODEL
         self._use_korean = use_korean
+        # Instance-specific identification for multi-model support
+        self._instance_id = instance_id
+        self._display_name_override: str | None = None
+
+    @property
+    def name(self) -> str:
+        """Return unique instance name for context key distinction."""
+        if self._instance_id:
+            return self._instance_id
+        return self._default_name
+
+    @property
+    def display_name(self) -> str:
+        """Return display name for UI."""
+        if self._display_name_override:
+            return self._display_name_override
+        if self._instance_id:
+            return f"Ollama ({self._model})"
+        return self._default_display_name
+
+    @display_name.setter
+    def display_name(self, value: str) -> None:
+        """Set custom display name."""
+        self._display_name_override = value
 
     async def _check_availability(self) -> bool:
         """Check if Ollama server is running.

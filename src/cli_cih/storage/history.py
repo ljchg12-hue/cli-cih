@@ -80,9 +80,11 @@ class HistoryStorage:
             """)
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Get database connection."""
+        """Get database connection with foreign keys enabled."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
+        # Enable foreign key constraints (SQLite default is OFF)
+        conn.execute("PRAGMA foreign_keys = ON")
         return conn
 
     async def save_session(self, session: Session) -> str:

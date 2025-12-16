@@ -26,18 +26,19 @@ class OllamaInstance:
 
 
 # Task-specific Ollama model profiles
+# Note: Use valid model names that exist in Ollama registry
 OLLAMA_PROFILES = {
     "coding": [
         OllamaInstance("qwen2.5-coder:7b", "Ollama-Coder", "code"),
-        OllamaInstance("deepseek-r1:70b", "Ollama-Reasoner", "reasoning"),
+        OllamaInstance("deepseek-coder:6.7b", "Ollama-DeepCoder", "reasoning"),
     ],
     "analysis": [
         OllamaInstance("llama3.1:70b", "Ollama-Analysis", "analysis"),
-        OllamaInstance("qwen3:32b", "Ollama-Logic", "logic"),
-        OllamaInstance("deepseek-r1:32b", "Ollama-Deep", "deep_thinking"),
+        OllamaInstance("qwen2.5:32b", "Ollama-Logic", "logic"),  # Fixed: qwen3:32b → qwen2.5:32b
+        OllamaInstance("mixtral:8x7b", "Ollama-Mixtral", "deep_thinking"),
     ],
     "creative": [
-        OllamaInstance("llama3.3:latest", "Ollama-Creative", "creative"),
+        OllamaInstance("llama3.1:8b", "Ollama-Creative", "creative"),  # Fixed: llama3.3 → llama3.1
         OllamaInstance("mistral:7b", "Ollama-Fast", "speed"),
     ],
     "default": [
@@ -233,13 +234,15 @@ class AISelector:
         else:
             count = 1  # Low: 1
 
-        # Create Ollama instances with different models
+        # Create Ollama instances with different models and unique IDs
         instances = []
-        for profile in profiles[:count]:
+        for i, profile in enumerate(profiles[:count]):
             from cli_cih.adapters.base import AdapterConfig
 
+            # Generate unique instance ID to prevent context key collisions
+            instance_id = f"ollama-{i}-{profile.model.replace(':', '-').replace('.', '-')}"
             config = AdapterConfig(model=profile.model)
-            adapter = OllamaAdapter(config=config)
+            adapter = OllamaAdapter(config=config, instance_id=instance_id)
             adapter.display_name = profile.name
             adapter.set_model(profile.model)
             instances.append(adapter)

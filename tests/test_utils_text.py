@@ -1,7 +1,6 @@
 """Tests for utils/text module."""
 
-import pytest
-from cli_cih.utils.text import clean_ansi, truncate_text, ANSI_ESCAPE_PATTERN
+from cli_cih.utils.text import ANSI_ESCAPE_PATTERN, clean_ansi, truncate_text
 
 
 class TestCleanAnsi:

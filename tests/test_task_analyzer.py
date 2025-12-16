@@ -1,7 +1,8 @@
 """Tests for TaskAnalyzer module."""
 
 import pytest
-from cli_cih.orchestration.task_analyzer import TaskAnalyzer, Task, TaskType
+
+from cli_cih.orchestration.task_analyzer import Task, TaskAnalyzer, TaskType
 
 
 class TestTaskAnalyzerSimpleChat:
@@ -71,7 +72,9 @@ class TestTaskAnalyzerTaskTypes:
         for prompt in prompts:
             task = analyzer.analyze(prompt)
             # Should be DEBUG, CODE, GENERAL or ANALYSIS
-            assert task.task_type in [TaskType.DEBUG, TaskType.CODE, TaskType.GENERAL, TaskType.ANALYSIS], f"Failed for: {prompt}"
+            assert task.task_type in [
+                TaskType.DEBUG, TaskType.CODE, TaskType.GENERAL, TaskType.ANALYSIS
+            ], f"Failed for: {prompt}"
             # Debug tasks should have moderate complexity
             assert task.complexity >= 0.3
 
@@ -84,7 +87,9 @@ class TestTaskAnalyzerTaskTypes:
         for prompt in prompts:
             task = analyzer.analyze(prompt)
             # Should be DESIGN or related type
-            assert task.task_type in [TaskType.DESIGN, TaskType.GENERAL, TaskType.ANALYSIS], f"Failed for: {prompt}"
+            assert task.task_type in [
+                TaskType.DESIGN, TaskType.GENERAL, TaskType.ANALYSIS
+            ], f"Failed for: {prompt}"
 
     def test_research_task_detection(self, analyzer):
         """Research-related prompts should be RESEARCH, ANALYSIS or GENERAL type."""
@@ -95,7 +100,9 @@ class TestTaskAnalyzerTaskTypes:
         for prompt in prompts:
             task = analyzer.analyze(prompt)
             # Should be RESEARCH, ANALYSIS, or GENERAL
-            assert task.task_type in [TaskType.RESEARCH, TaskType.ANALYSIS, TaskType.GENERAL], f"Failed for: {prompt}"
+            assert task.task_type in [
+                TaskType.RESEARCH, TaskType.ANALYSIS, TaskType.GENERAL
+            ], f"Failed for: {prompt}"
 
 
 class TestTaskAnalyzerComplexity:
@@ -122,7 +129,9 @@ class TestTaskAnalyzerComplexity:
 
     def test_technical_keywords_increase_complexity(self, analyzer):
         """Technical keywords should increase complexity."""
-        task = analyzer.analyze("API 서버를 구현하고 데이터베이스를 연동해서 REST 엔드포인트를 만들어줘")
+        task = analyzer.analyze(
+            "API 서버를 구현하고 데이터베이스를 연동해서 REST 엔드포인트를 만들어줘"
+        )
         assert task.complexity > 0.3
 
 

@@ -3,50 +3,44 @@
 Tests the complete flow from adapters through discussion to history storage.
 """
 
-import pytest
-import asyncio
-import tempfile
 import os
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+import tempfile
+
+import pytest
 
 # Test imports
 from cli_cih import __version__
 from cli_cih.adapters import (
-    AIAdapter,
+    ADAPTERS,
     AdapterConfig,
-    AdapterResponse,
-    AdapterError,
-    AdapterTimeoutError,
-    AdapterNotAvailableError,
     AdapterConnectionError,
+    AdapterError,
+    AdapterNotAvailableError,
     AdapterRateLimitError,
+    AdapterResponse,
+    AdapterTimeoutError,
+    AIAdapter,
+    ClaudeAdapter,
     get_adapter,
     get_all_adapters,
-    ADAPTERS,
-    ClaudeAdapter,
-    CodexAdapter,
-    GeminiAdapter,
-    OllamaAdapter,
-)
-from cli_cih.storage.models import (
-    Session,
-    HistoryMessage,
-    SessionResult,
-    SessionStatus,
-    SenderType,
 )
 from cli_cih.storage.history import HistoryStorage
+from cli_cih.storage.models import (
+    HistoryMessage,
+    SenderType,
+    Session,
+    SessionStatus,
+)
+from cli_cih.utils.logging import get_logger, setup_logging
 from cli_cih.utils.retry import (
-    RetryConfig,
-    retry_async,
-    with_retry,
     CircuitBreaker,
     CircuitBreakerOpenError,
-    format_error_message,
+    RetryConfig,
     calculate_delay,
+    format_error_message,
+    retry_async,
+    with_retry,
 )
-from cli_cih.utils.logging import setup_logging, get_logger
 
 
 class TestVersion:

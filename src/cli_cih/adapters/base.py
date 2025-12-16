@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import threading
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Callable
@@ -76,8 +77,9 @@ class AIAdapter(ABC):
     color: str = "white"
     icon: str = "🤖"
 
-    # Availability cache (shared across all instances)
+    # Availability cache (shared across all instances) with thread safety
     _availability_cache: ClassVar[dict[str, tuple[bool, float]]] = {}
+    _cache_lock: ClassVar[threading.Lock] = threading.Lock()
     CACHE_TTL: ClassVar[float] = 30.0  # 30초 캐시
 
     def __init__(self, config: AdapterConfig | None = None):
@@ -98,15 +100,20 @@ class AIAdapter(ABC):
         cache_key = self.name
         now = time.time()
 
-        # Check cache
-        if cache_key in self._availability_cache:
-            cached_result, cached_time = self._availability_cache[cache_key]
-            if now - cached_time < self.CACHE_TTL:
-                return cached_result
+        # Thread-safe cache check
+        with self._cache_lock:
+            if cache_key in self._availability_cache:
+                cached_result, cached_time = self._availability_cache[cache_key]
+                if now - cached_time < self.CACHE_TTL:
+                    return cached_result
 
-        # Cache miss - perform actual check
+        # Cache miss - perform actual check (outside lock to avoid blocking)
         result = await self._check_availability()
-        self._availability_cache[cache_key] = (result, now)
+
+        # Thread-safe cache update
+        with self._cache_lock:
+            self._availability_cache[cache_key] = (result, now)
+
         return result
 
     @abstractmethod
@@ -122,17 +129,19 @@ class AIAdapter(ABC):
 
     @classmethod
     def clear_availability_cache(cls) -> None:
-        """Clear the availability cache for all adapters."""
-        cls._availability_cache.clear()
+        """Clear the availability cache for all adapters (thread-safe)."""
+        with cls._cache_lock:
+            cls._availability_cache.clear()
 
     @classmethod
     def invalidate_cache(cls, adapter_name: str) -> None:
-        """Invalidate cache for a specific adapter.
+        """Invalidate cache for a specific adapter (thread-safe).
 
         Args:
             adapter_name: Name of the adapter to invalidate.
         """
-        cls._availability_cache.pop(adapter_name, None)
+        with cls._cache_lock:
+            cls._availability_cache.pop(adapter_name, None)
 
     @abstractmethod
     async def send(self, prompt: str) -> AsyncIterator[str]:

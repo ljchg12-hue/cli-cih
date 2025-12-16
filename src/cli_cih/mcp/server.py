@@ -13,7 +13,6 @@ import asyncio
 import json
 import os
 import shutil
-import subprocess
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
@@ -128,29 +127,45 @@ def make_response(
 # ═══════════════════════════════════════════════
 
 
-def run_cli_safe(command: list[str], timeout: int = 120) -> dict:
-    """CLI 명령어 안전하게 실행."""
+async def run_cli_async(command: list[str], timeout: int = 120) -> dict:
+    """CLI 명령어 비동기로 안전하게 실행.
+
+    Args:
+        command: 실행할 명령어 리스트
+        timeout: 타임아웃 (초)
+
+    Returns:
+        실행 결과 딕셔너리
+    """
     try:
         env = os.environ.copy()
         env["TERM"] = "dumb"
         env["NO_COLOR"] = "1"
         env["CI"] = "1"
 
-        result = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
+        process = await asyncio.create_subprocess_exec(
+            *command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
             env=env,
         )
-        return {
-            "stdout": result.stdout.strip(),
-            "stderr": result.stderr.strip(),
-            "returncode": result.returncode,
-            "success": result.returncode == 0,
-        }
-    except subprocess.TimeoutExpired:
-        return {"error": f"Timeout after {timeout}s", "success": False}
+
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(),
+                timeout=timeout,
+            )
+            return {
+                "stdout": stdout.decode().strip() if stdout else "",
+                "stderr": stderr.decode().strip() if stderr else "",
+                "returncode": process.returncode,
+                "success": process.returncode == 0,
+            }
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.wait()
+            return {"error": f"Timeout after {timeout}s", "success": False}
+
     except FileNotFoundError:
         return {"error": f"Command not found: {command[0]}", "success": False}
     except Exception as e:
@@ -330,13 +345,13 @@ async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict:
 
     try:
         if ai == "claude":
-            result = run_cli_safe([CLAUDE_CMD, "-p", prompt], timeout=timeout)
+            result = await run_cli_async([CLAUDE_CMD, "-p", prompt], timeout=timeout)
         elif ai == "codex":
-            result = run_cli_safe(
+            result = await run_cli_async(
                 [CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout
             )
         elif ai == "gemini":
-            result = run_cli_safe([GEMINI_CMD, prompt], timeout=timeout)
+            result = await run_cli_async([GEMINI_CMD, prompt], timeout=timeout)
         elif ai == "ollama":
             result = await call_ollama(prompt)
         else:
@@ -462,13 +477,13 @@ async def cih_discuss(
         # 병렬로 AI 호출
         async def call_ai(ai_name: str):
             if ai_name == "claude":
-                result = run_cli_safe([CLAUDE_CMD, "-p", prompt], timeout=timeout)
+                result = await run_cli_async([CLAUDE_CMD, "-p", prompt], timeout=timeout)
                 if result["success"]:
                     return ai_name, {"response": result["stdout"], "success": True}
                 return ai_name, {"error": result.get("error", "Unknown"), "success": False}
 
             elif ai_name == "codex":
-                result = run_cli_safe(
+                result = await run_cli_async(
                     [CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout
                 )
                 if result["success"]:
@@ -476,7 +491,7 @@ async def cih_discuss(
                 return ai_name, {"error": result.get("error", "Unknown"), "success": False}
 
             elif ai_name == "gemini":
-                result = run_cli_safe([GEMINI_CMD, prompt], timeout=timeout)
+                result = await run_cli_async([GEMINI_CMD, prompt], timeout=timeout)
                 if result["success"]:
                     return ai_name, {"response": result["stdout"], "success": True}
                 return ai_name, {"error": result.get("error", "Unknown"), "success": False}
@@ -485,7 +500,7 @@ async def cih_discuss(
                 return ai_name, await call_ollama(prompt)
 
             elif ai_name == "copilot":
-                result = run_cli_safe([COPILOT_CMD, "explain", prompt], timeout=timeout)
+                result = await run_cli_async([COPILOT_CMD, "explain", prompt], timeout=timeout)
                 if result["success"]:
                     return ai_name, {"response": result["stdout"], "success": True}
                 return ai_name, {"error": result.get("error", "Unknown"), "success": False}
@@ -520,7 +535,9 @@ async def cih_discuss(
 
 종합 결론:"""
 
-                synthesis_result = run_cli_safe([CLAUDE_CMD, "-p", synthesis_prompt], timeout=60)
+                synthesis_result = await run_cli_async(
+                    [CLAUDE_CMD, "-p", synthesis_prompt], timeout=60
+                )
                 if synthesis_result["success"]:
                     synthesis = {"summary": synthesis_result["stdout"], "synthesized_by": "claude"}
 
@@ -583,7 +600,7 @@ async def cih_status() -> dict:
     status = {}
 
     # Claude
-    result = run_cli_safe([CLAUDE_CMD, "--version"], timeout=10)
+    result = await run_cli_async([CLAUDE_CMD, "--version"], timeout=10)
     status["claude"] = {
         "available": result["success"],
         "version": result.get("stdout", "unknown") if result["success"] else None,
@@ -591,7 +608,7 @@ async def cih_status() -> dict:
     }
 
     # Codex
-    result = run_cli_safe([CODEX_CMD, "--version"], timeout=10)
+    result = await run_cli_async([CODEX_CMD, "--version"], timeout=10)
     status["codex"] = {
         "available": result["success"],
         "version": result.get("stdout", "unknown") if result["success"] else None,
@@ -599,7 +616,7 @@ async def cih_status() -> dict:
     }
 
     # Gemini
-    result = run_cli_safe([GEMINI_CMD, "--version"], timeout=10)
+    result = await run_cli_async([GEMINI_CMD, "--version"], timeout=10)
     status["gemini"] = {
         "available": result["success"],
         "version": result.get("stdout", "unknown") if result["success"] else None,
@@ -607,7 +624,7 @@ async def cih_status() -> dict:
     }
 
     # Copilot
-    result = run_cli_safe([COPILOT_CMD, "--version"], timeout=10)
+    result = await run_cli_async([COPILOT_CMD, "--version"], timeout=10)
     status["copilot"] = {
         "available": result["success"],
         "version": result.get("stdout", "unknown") if result["success"] else None,
@@ -616,16 +633,17 @@ async def cih_status() -> dict:
 
     # Ollama
     try:
-        response = httpx.get(f"{OLLAMA_ENDPOINT}/api/tags", timeout=5.0)
-        if response.status_code == 200:
-            models = response.json().get("models", [])
-            status["ollama"] = {
-                "available": True,
-                "endpoint": OLLAMA_ENDPOINT,
-                "models": [m.get("name") for m in models[:5]],
-            }
-        else:
-            status["ollama"] = {"available": False, "endpoint": OLLAMA_ENDPOINT}
+        async with httpx.AsyncClient(timeout=httpx.Timeout(5.0, connect=3.0)) as client:
+            response = await client.get(f"{OLLAMA_ENDPOINT}/api/tags")
+            if response.status_code == 200:
+                ollama_models = response.json().get("models", [])
+                status["ollama"] = {
+                    "available": True,
+                    "endpoint": OLLAMA_ENDPOINT,
+                    "models": [m.get("name") for m in ollama_models[:5]],
+                }
+            else:
+                status["ollama"] = {"available": False, "endpoint": OLLAMA_ENDPOINT}
     except Exception:
         status["ollama"] = {"available": False, "endpoint": OLLAMA_ENDPOINT}
 
@@ -685,13 +703,13 @@ async def cih_smart(
 
         # AI 호출
         if ai == "codex":
-            result = run_cli_safe(
+            result = await run_cli_async(
                 [CODEX_CMD, "exec", "--skip-git-repo-check", prompt], timeout=timeout
             )
         elif ai == "gemini":
-            result = run_cli_safe([GEMINI_CMD, prompt], timeout=timeout)
+            result = await run_cli_async([GEMINI_CMD, prompt], timeout=timeout)
         else:  # claude
-            result = run_cli_safe([CLAUDE_CMD, "-p", prompt], timeout=timeout)
+            result = await run_cli_async([CLAUDE_CMD, "-p", prompt], timeout=timeout)
 
         duration = int((time.time() - start) * 1000)
 
@@ -846,7 +864,7 @@ async def cih_models() -> dict:
             ("gemini", GEMINI_CMD),
             ("copilot", COPILOT_CMD),
         ]:
-            result = run_cli_safe([cmd, "--version"], timeout=10)
+            result = await run_cli_async([cmd, "--version"], timeout=10)
             models[name] = {
                 "available": result["success"],
                 "type": "cloud",
@@ -855,25 +873,26 @@ async def cih_models() -> dict:
 
         # Ollama (local models)
         try:
-            response = httpx.get(f"{OLLAMA_ENDPOINT}/api/tags", timeout=10.0)
-            if response.status_code == 200:
-                ollama_models = response.json().get("models", [])
-                models["ollama"] = {
-                    "available": True,
-                    "type": "local",
-                    "endpoint": OLLAMA_ENDPOINT,
-                    "models": [
-                        {
-                            "name": m.get("name"),
-                            "size": m.get("size", 0) // (1024**3),  # GB
-                            "modified": m.get("modified_at"),
-                        }
-                        for m in ollama_models[:10]
-                    ],
-                    "model_count": len(ollama_models),
-                }
-            else:
-                models["ollama"] = {"available": False, "type": "local"}
+            async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+                response = await client.get(f"{OLLAMA_ENDPOINT}/api/tags")
+                if response.status_code == 200:
+                    ollama_models = response.json().get("models", [])
+                    models["ollama"] = {
+                        "available": True,
+                        "type": "local",
+                        "endpoint": OLLAMA_ENDPOINT,
+                        "models": [
+                            {
+                                "name": m.get("name"),
+                                "size": m.get("size", 0) // (1024**3),  # GB
+                                "modified": m.get("modified_at"),
+                            }
+                            for m in ollama_models[:10]
+                        ],
+                        "model_count": len(ollama_models),
+                    }
+                else:
+                    models["ollama"] = {"available": False, "type": "local"}
         except Exception as e:
             models["ollama"] = {"available": False, "type": "local", "error": str(e)}
 

@@ -5,6 +5,44 @@ All notable changes to CLI-CIH will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2025-12-17
+
+### Fixed
+- **Ollama Multi-Instance Conflict** (Critical)
+  - Added unique `instance_id` to prevent adapter.name collision
+  - Instance-specific cache keys avoid context key overwrite
+  - Property decorators for unique display_name per instance
+
+- **Invalid Ollama Model Names**
+  - Replaced non-existent `qwen3:32b` → `qwen2.5:32b`
+  - Replaced non-existent `llama3.3:70b-instruct-q4_K_M` → `llama3.1:70b`
+
+- **MCP Server Blocking I/O** (Performance)
+  - Converted `subprocess.run` → `asyncio.create_subprocess_exec`
+  - Converted sync `httpx.get` → async `httpx.AsyncClient`
+  - Added proper timeout handling with `asyncio.wait_for`
+
+- **SQLite Foreign Key Enforcement**
+  - Added `PRAGMA foreign_keys = ON` in connection setup
+
+- **Pydantic V2 Deprecation Warning**
+  - Migrated from deprecated `class Config:` to `ConfigDict`
+
+- **Cache Thread Safety** (Concurrency)
+  - Added `threading.Lock` to protect shared availability cache
+  - Thread-safe cache read/write/clear operations
+
+### Changed
+- HTTP client timeout explicitly set via `httpx.Timeout`
+- Test class renamed from `TestRunCliSafe` to `TestRunCliAsync`
+- Updated tests to use async mock patterns
+
+### Testing
+- 205 tests passing
+- All ruff lint checks passing
+
+---
+
 ## [1.1.0] - 2025-12-16
 
 ### Added

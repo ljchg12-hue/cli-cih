@@ -1,12 +1,13 @@
 """Tests for Phase 8 bug fixes."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
-from cli_cih.orchestration.task_analyzer import TaskAnalyzer, Task, TaskType
+import pytest
+
+from cli_cih.adapters import ClaudeAdapter, CodexAdapter, OllamaAdapter
 from cli_cih.orchestration.ai_selector import AISelector
 from cli_cih.orchestration.conflict import ConflictResolver
-from cli_cih.adapters import OllamaAdapter, ClaudeAdapter, CodexAdapter
+from cli_cih.orchestration.task_analyzer import TaskAnalyzer, TaskType
 
 
 class TestSimpleChatDetection:
@@ -93,7 +94,7 @@ class TestCodexPriority:
 
         # Score both
         codex_score = selector._score_ai(codex, task)
-        claude_score = selector._score_ai(claude, task)
+        _claude_score = selector._score_ai(claude, task)  # Used for comparison
 
         # Codex should score higher for code tasks due to bonus
         # Note: There's some randomization, so we check base scores

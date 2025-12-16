@@ -1,25 +1,25 @@
 """Unit tests for AI adapters."""
 
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-import asyncio
 
 from cli_cih.adapters import (
-    AIAdapter,
+    ADAPTERS,
     AdapterConfig,
-    AdapterResponse,
-    AdapterError,
-    AdapterTimeoutError,
-    AdapterNotAvailableError,
     AdapterConnectionError,
+    AdapterError,
+    AdapterNotAvailableError,
     AdapterRateLimitError,
+    AdapterResponse,
+    AdapterTimeoutError,
+    AIAdapter,
     ClaudeAdapter,
     CodexAdapter,
     GeminiAdapter,
     OllamaAdapter,
     get_adapter,
     get_all_adapters,
-    ADAPTERS,
 )
 
 
@@ -250,7 +250,7 @@ class TestAdapterRegistry:
 
     def test_registry_values_are_classes(self):
         """Registry values should be adapter classes."""
-        for name, cls in ADAPTERS.items():
+        for _name, cls in ADAPTERS.items():
             assert issubclass(cls, AIAdapter)
 
 

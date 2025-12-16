@@ -1,12 +1,10 @@
 """Unit tests for MCP Server (Phase 5 Refactored)."""
 
 import asyncio
-import json
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch, PropertyMock
-from dataclasses import asdict
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
+import pytest
 
 
 # Helper to get underlying function from FastMCP tool
@@ -106,45 +104,49 @@ class TestMakeResponse:
 
 
 # ═══════════════════════════════════════════════
-# Test run_cli_safe
+# Test run_cli_async
 # ═══════════════════════════════════════════════
 
-class TestRunCliSafe:
-    """Tests for run_cli_safe helper function."""
+class TestRunCliAsync:
+    """Tests for run_cli_async helper function."""
 
-    def test_successful_command(self):
+    @pytest.mark.asyncio
+    async def test_successful_command(self):
         """Successful command should return proper result."""
-        from cli_cih.mcp.server import run_cli_safe
+        from cli_cih.mcp.server import run_cli_async
 
-        result = run_cli_safe(["echo", "hello"], timeout=10)
+        result = await run_cli_async(["echo", "hello"], timeout=10)
 
         assert result["success"] is True
         assert "hello" in result["stdout"]
         assert result["returncode"] == 0
 
-    def test_failed_command(self):
+    @pytest.mark.asyncio
+    async def test_failed_command(self):
         """Failed command should return error info."""
-        from cli_cih.mcp.server import run_cli_safe
+        from cli_cih.mcp.server import run_cli_async
 
-        result = run_cli_safe(["false"], timeout=10)
+        result = await run_cli_async(["false"], timeout=10)
 
         assert result["success"] is False
         assert result["returncode"] != 0
 
-    def test_command_not_found(self):
+    @pytest.mark.asyncio
+    async def test_command_not_found(self):
         """Non-existent command should return error."""
-        from cli_cih.mcp.server import run_cli_safe
+        from cli_cih.mcp.server import run_cli_async
 
-        result = run_cli_safe(["nonexistent_command_xyz"], timeout=5)
+        result = await run_cli_async(["nonexistent_command_xyz"], timeout=5)
 
         assert result["success"] is False
         assert "not found" in result.get("error", "").lower() or "error" in result
 
-    def test_timeout(self):
+    @pytest.mark.asyncio
+    async def test_timeout(self):
         """Command timeout should be handled."""
-        from cli_cih.mcp.server import run_cli_safe
+        from cli_cih.mcp.server import run_cli_async
 
-        result = run_cli_safe(["sleep", "10"], timeout=1)
+        result = await run_cli_async(["sleep", "10"], timeout=1)
 
         assert result["success"] is False
         assert "timeout" in result.get("error", "").lower()
@@ -244,7 +246,7 @@ class TestCihQuick:
         from cli_cih.mcp.server import cih_quick
         fn = get_tool_fn(cih_quick)
 
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run:
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run:
             mock_run.return_value = {
                 "success": True,
                 "stdout": "Hello, I am Claude",
@@ -274,7 +276,7 @@ class TestCihQuick:
         from cli_cih.mcp.server import cih_quick
         fn = get_tool_fn(cih_quick)
 
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run, \
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run, \
              patch("cli_cih.mcp.server.call_ollama") as mock_ollama:
 
             mock_run.return_value = {"success": False, "error": "CLI failed"}
@@ -328,7 +330,7 @@ class TestCihStatus:
         from cli_cih.mcp.server import cih_status
         fn = get_tool_fn(cih_status)
 
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run, \
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run, \
              patch("httpx.get") as mock_get:
 
             mock_run.return_value = {"success": True, "stdout": "1.0.0"}
@@ -353,7 +355,7 @@ class TestCihSmart:
         from cli_cih.mcp.server import cih_smart
         fn = get_tool_fn(cih_smart)
 
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run:
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run:
             mock_run.return_value = {
                 "success": True,
                 "stdout": "Code result"
@@ -371,7 +373,7 @@ class TestCihSmart:
         from cli_cih.mcp.server import cih_smart
         fn = get_tool_fn(cih_smart)
 
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run:
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run:
             mock_run.return_value = {
                 "success": True,
                 "stdout": "Research result"
@@ -426,7 +428,7 @@ class TestCihModels:
         from cli_cih.mcp.server import cih_models
         fn = get_tool_fn(cih_models)
 
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run, \
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run, \
              patch("httpx.get") as mock_get:
 
             mock_run.return_value = {"success": True, "stdout": "1.0.0"}
@@ -611,7 +613,7 @@ class TestIntegration:
         from cli_cih.mcp.server import cih_discuss
         fn = get_tool_fn(cih_discuss)
 
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run:
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run:
             # Mock all AI responses
             def mock_responses(args, timeout=None):
                 if "claude" in args[0]:
@@ -639,12 +641,12 @@ class TestIntegration:
     @pytest.mark.asyncio
     async def test_error_handling_consistency(self):
         """All tools should handle errors consistently."""
-        from cli_cih.mcp.server import cih_quick, cih_analyze
+        from cli_cih.mcp.server import cih_analyze, cih_quick
         quick_fn = get_tool_fn(cih_quick)
         analyze_fn = get_tool_fn(cih_analyze)
 
         # Test cih_quick with error
-        with patch("cli_cih.mcp.server.run_cli_safe") as mock_run, \
+        with patch("cli_cih.mcp.server.run_cli_async") as mock_run, \
              patch("cli_cih.mcp.server.call_ollama") as mock_ollama:
             mock_run.return_value = {"success": False, "error": "CLI error"}
             mock_ollama.return_value = {"success": False, "error": "Ollama error"}

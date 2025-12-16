@@ -1,8 +1,10 @@
 """Tests for SharedContext module."""
 
-import pytest
 from datetime import datetime
-from cli_cih.orchestration.context import SharedContext, Message
+
+import pytest
+
+from cli_cih.orchestration.context import Message, SharedContext
 
 
 class TestMessage:
