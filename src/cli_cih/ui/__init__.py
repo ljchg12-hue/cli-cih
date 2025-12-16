@@ -17,6 +17,7 @@ from cli_cih.ui.panels import (
     create_task_info_panel,
 )
 from cli_cih.ui.renderer import get_console, render_ai_response
+from cli_cih.ui.spinner import LoadingIndicator, ProgressTracker, loading
 from cli_cih.ui.streaming import StreamingDisplay, ThinkingIndicator
 from cli_cih.ui.themes import AI_COLORS, THEME
 
@@ -39,6 +40,9 @@ __all__ = [
     "create_synthesis_panel",
     "StreamingDisplay",
     "ThinkingIndicator",
+    "LoadingIndicator",
+    "ProgressTracker",
+    "loading",
     "AI_COLORS",
     "THEME",
 ]

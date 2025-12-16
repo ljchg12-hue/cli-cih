@@ -26,7 +26,7 @@ class ClaudeAdapter(AIAdapter):
         super().__init__(config)
         self._command = "claude"
 
-    async def is_available(self) -> bool:
+    async def _check_availability(self) -> bool:
         """Check if Claude CLI is available."""
         return await PTYManager.check_command_exists(self._command)
 

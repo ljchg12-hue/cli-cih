@@ -1,5 +1,6 @@
 """Main coordinator for multi-AI discussions."""
 
+import asyncio
 from dataclasses import dataclass
 from typing import AsyncIterator, Awaitable, Callable, Optional
 
@@ -178,6 +179,46 @@ class Coordinator:
         # Callbacks for interactive conflict/approval handling
         self._conflict_callback: Optional[Callable[[Conflict, Resolution], Awaitable[str]]] = None
         self._approval_callback: Optional[Callable[[Action, ImportanceLevel], Awaitable[ApprovalResult]]] = None
+
+    @staticmethod
+    async def check_adapters_parallel(
+        adapters: list[AIAdapter],
+        timeout: float = 5.0,
+    ) -> list[AIAdapter]:
+        """Check multiple adapters for availability in parallel.
+
+        Args:
+            adapters: List of adapters to check.
+            timeout: Timeout for each check in seconds.
+
+        Returns:
+            List of available adapters.
+        """
+        async def check_with_timeout(adapter: AIAdapter) -> tuple[AIAdapter, bool]:
+            try:
+                result = await asyncio.wait_for(
+                    adapter.is_available(),
+                    timeout=timeout,
+                )
+                return adapter, result
+            except asyncio.TimeoutError:
+                return adapter, False
+            except Exception:
+                return adapter, False
+
+        # Run all checks in parallel
+        tasks = [check_with_timeout(a) for a in adapters]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        # Filter available adapters
+        available = []
+        for result in results:
+            if isinstance(result, tuple):
+                adapter, is_available = result
+                if is_available:
+                    available.append(adapter)
+
+        return available
 
     def set_conflict_callback(
         self,
@@ -398,6 +439,8 @@ class Coordinator:
     ) -> AsyncIterator[Event]:
         """Fast path for simple queries using a single AI.
 
+        Uses parallel checking and graceful degradation (fallback to next AI on error).
+
         Args:
             user_input: The user's input.
             available_adapters: Available adapters.
@@ -407,13 +450,10 @@ class Coordinator:
         """
         from cli_cih.adapters import get_all_adapters
 
-        # Get first available adapter
+        # Get available adapters using parallel checking
         if available_adapters is None:
             all_adapters = get_all_adapters()
-            available_adapters = []
-            for adapter in all_adapters:
-                if await adapter.is_available():
-                    available_adapters.append(adapter)
+            available_adapters = await self.check_adapters_parallel(all_adapters)
 
         if not available_adapters:
             yield AIsSelectedEvent(
@@ -422,57 +462,72 @@ class Coordinator:
             )
             return
 
-        # Use first available adapter for fast response
-        adapter = available_adapters[0]
-        self._current_adapters = [adapter]
-
-        yield AIsSelectedEvent(
-            adapters=[adapter],
-            explanation=f"Quick response from {adapter.display_name}",
-        )
-
         # Initialize minimal context
         self._context = SharedContext(user_input)
 
-        # Start single AI response
-        yield AIStartEvent(
-            ai_name=adapter.display_name,
-            ai_icon=adapter.icon,
-            ai_color=adapter.color,
-        )
+        # Try adapters in order (graceful degradation)
+        for adapter in available_adapters:
+            self._current_adapters = [adapter]
 
-        # Stream response
-        full_response = ""
-        try:
-            async for chunk in adapter.send(user_input):
-                full_response += chunk
-                yield AIChunkEvent(
-                    ai_name=adapter.display_name,
-                    chunk=chunk,
-                )
-        except Exception as e:
-            yield AIErrorEvent(
-                ai_name=adapter.display_name,
-                error=str(e),
+            yield AIsSelectedEvent(
+                adapters=[adapter],
+                explanation=f"Quick response from {adapter.display_name}",
             )
-            return
 
-        yield AIEndEvent(
-            ai_name=adapter.display_name,
-            response=full_response,
-        )
+            # Start single AI response
+            yield AIStartEvent(
+                ai_name=adapter.display_name,
+                ai_icon=adapter.icon,
+                ai_color=adapter.color,
+            )
 
-        # Minimal result
-        from cli_cih.orchestration.synthesizer import SynthesisResult
-        result = SynthesisResult(
-            summary=full_response[:200] + "..." if len(full_response) > 200 else full_response,
-            key_points=[],
-            agreements=[],
-            disagreements=[],
-            recommendations=[],
-            total_rounds=1,
-            total_messages=1,
-            consensus_reached=True,
-            ai_contributions={adapter.name: 100.0},
-        )
-        yield ResultEvent(result=result, context=self._context)
+            # Stream response with error recovery
+            full_response = ""
+            try:
+                async for chunk in adapter.send(user_input):
+                    full_response += chunk
+                    yield AIChunkEvent(
+                        ai_name=adapter.display_name,
+                        chunk=chunk,
+                    )
+
+                # Success - yield end event and result
+                yield AIEndEvent(
+                    ai_name=adapter.display_name,
+                    response=full_response,
+                )
+
+                # Minimal result
+                from cli_cih.orchestration.synthesizer import SynthesisResult
+                result = SynthesisResult(
+                    summary=full_response[:200] + "..." if len(full_response) > 200 else full_response,
+                    key_points=[],
+                    agreements=[],
+                    disagreements=[],
+                    recommendations=[],
+                    total_rounds=1,
+                    total_messages=1,
+                    consensus_reached=True,
+                    ai_contributions={adapter.name: 100.0},
+                )
+                yield ResultEvent(result=result, context=self._context)
+                return  # Success - exit
+
+            except Exception as e:
+                # Error - try fallback to next AI
+                yield AIErrorEvent(
+                    ai_name=adapter.display_name,
+                    error=str(e),
+                )
+
+                # Invalidate cache for failed adapter
+                from cli_cih.adapters import AIAdapter as BaseAdapter
+                BaseAdapter.invalidate_cache(adapter.name)
+
+                # Continue to next adapter (graceful degradation)
+                remaining = available_adapters[available_adapters.index(adapter) + 1:]
+                if remaining:
+                    continue
+                else:
+                    # No more adapters to try
+                    return

@@ -64,10 +64,24 @@ class Config(BaseModel):
     show_thinking: bool = True
     show_timestamps: bool = False
     compact_mode: bool = False
+    show_loading_spinner: bool = True
 
     # History settings
     save_history: bool = True
     max_history_items: int = 1000
+
+    # Performance settings
+    availability_cache_ttl: float = Field(
+        default=30.0, ge=5.0, le=300.0,
+        description="TTL for adapter availability cache in seconds"
+    )
+    parallel_check_timeout: float = Field(
+        default=5.0, ge=1.0, le=30.0,
+        description="Timeout for parallel adapter availability checks"
+    )
+    enable_graceful_degradation: bool = Field(
+        default=True, description="Fallback to next AI on error"
+    )
 
     class Config:
         """Pydantic config."""

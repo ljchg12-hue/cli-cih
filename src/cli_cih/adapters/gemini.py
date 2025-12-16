@@ -48,7 +48,7 @@ class GeminiAdapter(AIAdapter):
         # Alternative fast wrapper if available
         self._fast_command = "gemini-fast"
 
-    async def is_available(self) -> bool:
+    async def _check_availability(self) -> bool:
         """Check if Gemini CLI is available.
 
         Returns:

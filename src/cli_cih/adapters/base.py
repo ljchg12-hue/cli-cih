@@ -2,9 +2,10 @@
 
 import asyncio
 import logging
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Optional
+from typing import Any, AsyncIterator, Callable, ClassVar, Optional
 
 
 class AdapterError(Exception):
@@ -74,6 +75,10 @@ class AIAdapter(ABC):
     color: str = "white"
     icon: str = "🤖"
 
+    # Availability cache (shared across all instances)
+    _availability_cache: ClassVar[dict[str, tuple[bool, float]]] = {}
+    CACHE_TTL: ClassVar[float] = 30.0  # 30초 캐시
+
     def __init__(self, config: Optional[AdapterConfig] = None):
         """Initialize the adapter.
 
@@ -82,6 +87,51 @@ class AIAdapter(ABC):
         """
         self.config = config or AdapterConfig()
         self._is_initialized = False
+
+    async def is_available(self) -> bool:
+        """Check if this adapter is available (with caching).
+
+        Returns:
+            True if the adapter can be used, False otherwise.
+        """
+        cache_key = self.name
+        now = time.time()
+
+        # Check cache
+        if cache_key in self._availability_cache:
+            cached_result, cached_time = self._availability_cache[cache_key]
+            if now - cached_time < self.CACHE_TTL:
+                return cached_result
+
+        # Cache miss - perform actual check
+        result = await self._check_availability()
+        self._availability_cache[cache_key] = (result, now)
+        return result
+
+    @abstractmethod
+    async def _check_availability(self) -> bool:
+        """Perform actual availability check.
+
+        Subclasses must implement this method.
+
+        Returns:
+            True if the adapter can be used, False otherwise.
+        """
+        pass
+
+    @classmethod
+    def clear_availability_cache(cls) -> None:
+        """Clear the availability cache for all adapters."""
+        cls._availability_cache.clear()
+
+    @classmethod
+    def invalidate_cache(cls, adapter_name: str) -> None:
+        """Invalidate cache for a specific adapter.
+
+        Args:
+            adapter_name: Name of the adapter to invalidate.
+        """
+        cls._availability_cache.pop(adapter_name, None)
 
     @abstractmethod
     async def send(self, prompt: str) -> AsyncIterator[str]:
@@ -98,15 +148,6 @@ class AIAdapter(ABC):
             AdapterTimeoutError: If the request times out.
         """
         yield ""
-
-    @abstractmethod
-    async def is_available(self) -> bool:
-        """Check if this adapter is available for use.
-
-        Returns:
-            True if the adapter can be used, False otherwise.
-        """
-        pass
 
     @abstractmethod
     async def get_version(self) -> str:

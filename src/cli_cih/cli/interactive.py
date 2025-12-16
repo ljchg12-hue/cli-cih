@@ -31,6 +31,7 @@ from cli_cih.orchestration import (
     RoundStartEvent,
     TaskAnalyzedEvent,
 )
+from cli_cih.ui.spinner import loading
 from cli_cih.ui.approval_prompt import ApprovalPrompt, ConflictPrompt
 from cli_cih.ui.panels import (
     create_ai_response_panel,
@@ -91,6 +92,8 @@ class InteractiveSession:
     async def initialize(self) -> bool:
         """Initialize the session with an AI adapter.
 
+        Uses parallel checking for faster adapter discovery.
+
         Returns:
             True if initialization successful.
         """
@@ -102,12 +105,14 @@ class InteractiveSession:
                 self.console.print(create_error_panel(str(e)))
                 return False
         else:
-            # Find first available adapter
-            for adapter in get_all_adapters():
-                if await adapter.is_available():
-                    self.adapter = adapter
-                    self.ai_name = adapter.name
-                    break
+            # Find first available adapter using parallel checking
+            async with loading("AI 확인 중...", console=self.console):
+                all_adapters = get_all_adapters()
+                available = await Coordinator.check_adapters_parallel(all_adapters)
+
+            if available:
+                self.adapter = available[0]
+                self.ai_name = self.adapter.name
 
         if self.adapter is None:
             self.console.print(create_error_panel(
@@ -116,7 +121,7 @@ class InteractiveSession:
             ))
             return False
 
-        # Check availability
+        # Check availability (uses cache from parallel check)
         if not await self.adapter.is_available():
             self.console.print(create_error_panel(
                 f"{self.adapter.display_name}을(를) 사용할 수 없습니다"
@@ -209,15 +214,21 @@ class InteractiveSession:
         return None
 
     async def _show_models(self) -> None:
-        """Show available models status."""
+        """Show available models status using parallel checking."""
         from rich.table import Table
 
         table = Table(show_header=True, header_style="bold")
         table.add_column("AI", style="bold")
         table.add_column("Status")
 
-        for adapter in get_all_adapters():
-            available = await adapter.is_available()
+        # Use parallel checking for faster status display
+        all_adapters = get_all_adapters()
+        async with loading("상태 확인 중...", console=self.console):
+            available_adapters = await Coordinator.check_adapters_parallel(all_adapters)
+
+        available_names = {a.name for a in available_adapters}
+        for adapter in all_adapters:
+            available = adapter.name in available_names
             status = "[green]✅ Available[/green]" if available else "[red]❌ Unavailable[/red]"
             current = " [cyan](current)[/cyan]" if adapter.name == self.ai_name else ""
             table.add_row(
@@ -375,13 +386,15 @@ class DiscussionSession:
     async def initialize(self) -> bool:
         """Initialize the discussion session.
 
+        Uses parallel checking for faster adapter discovery.
+
         Returns:
             True if initialization successful.
         """
-        # Find available adapters
-        for adapter in get_all_adapters():
-            if await adapter.is_available():
-                self._available_adapters.append(adapter)
+        # Find available adapters using parallel checking
+        async with loading("AI 확인 중...", console=self.console):
+            all_adapters = get_all_adapters()
+            self._available_adapters = await Coordinator.check_adapters_parallel(all_adapters)
 
         if len(self._available_adapters) < 2:
             self.console.print(create_error_panel(
@@ -449,7 +462,7 @@ class DiscussionSession:
         return None
 
     async def _show_models(self) -> None:
-        """Show available models status."""
+        """Show available models status using parallel checking."""
         from rich.table import Table
 
         table = Table(show_header=True, header_style="bold")
@@ -457,10 +470,17 @@ class DiscussionSession:
         table.add_column("Status")
         table.add_column("In Discussion")
 
-        for adapter in get_all_adapters():
-            available = await adapter.is_available()
+        # Use parallel checking for faster status display
+        all_adapters = get_all_adapters()
+        async with loading("상태 확인 중...", console=self.console):
+            available_adapters = await Coordinator.check_adapters_parallel(all_adapters)
+
+        available_names = {a.name for a in available_adapters}
+        in_discussion_names = {a.name for a in self._available_adapters}
+        for adapter in all_adapters:
+            available = adapter.name in available_names
             status = "[green]✅ Available[/green]" if available else "[red]❌ Unavailable[/red]"
-            in_discussion = "✓" if adapter in self._available_adapters else ""
+            in_discussion = "✓" if adapter.name in in_discussion_names else ""
             table.add_row(
                 f"[{adapter.color}]{adapter.icon} {adapter.display_name}[/{adapter.color}]",
                 status,

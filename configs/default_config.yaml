@@ -51,7 +51,13 @@ ais:
 show_thinking: true
 show_timestamps: false
 compact_mode: false
+show_loading_spinner: true
 
 # History Settings
 save_history: true
 max_history_items: 1000
+
+# Performance Settings
+availability_cache_ttl: 30.0  # Seconds to cache adapter availability (5-300)
+parallel_check_timeout: 5.0   # Timeout for each adapter check (1-30)
+enable_graceful_degradation: true  # Fallback to next AI on error

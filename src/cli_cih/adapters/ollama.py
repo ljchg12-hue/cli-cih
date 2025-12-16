@@ -57,7 +57,7 @@ class OllamaAdapter(AIAdapter):
         self._model = config.model if config and config.model else self.DEFAULT_MODEL
         self._use_korean = use_korean
 
-    async def is_available(self) -> bool:
+    async def _check_availability(self) -> bool:
         """Check if Ollama server is running.
 
         Returns:
