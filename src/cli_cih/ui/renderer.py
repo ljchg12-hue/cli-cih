@@ -1,7 +1,7 @@
 """Rich console rendering for CLI-CIH."""
 
 
-from rich.console import Console
+from rich.console import Console, RenderableType
 from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.text import Text
@@ -44,6 +44,7 @@ def render_ai_response(
     title.append(ai_name.upper(), style=f"bold {color}")
 
     # Render content
+    rendered_content: RenderableType
     if is_markdown:
         rendered_content = Markdown(content)
     else:

@@ -4,6 +4,7 @@ import re
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class ImportanceLevel(str, Enum):
@@ -55,7 +56,7 @@ class Action:
 
     action_type: ActionType
     description: str
-    details: dict = field(default_factory=dict)
+    details: dict[str, Any] = field(default_factory=dict)
 
     # Action specifics
     files_to_create: list[str] = field(default_factory=list)
@@ -98,7 +99,7 @@ class ApprovalResult:
     status: ApprovalStatus
     action: Action
     user_feedback: str = ""
-    modifications: dict = field(default_factory=dict)
+    modifications: dict[str, Any] = field(default_factory=dict)
 
 
 # Dangerous patterns in commands
@@ -168,7 +169,7 @@ class ApprovalEngine:
         Returns:
             ImportanceLevel indicating required approval level.
         """
-        score = 0
+        score: float = 0
 
         # File operations
         if action.modifies_files:
@@ -369,7 +370,7 @@ class ApprovalEngine:
         self,
         description: str,
         ai_votes: list[AIVote],
-        **kwargs,
+        **kwargs: Any,
     ) -> Action:
         """Create an action with AI votes.
 

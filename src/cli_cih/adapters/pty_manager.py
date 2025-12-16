@@ -18,9 +18,9 @@ class PTYConfig:
     timeout: int = 60
     encoding: str = "utf-8"
     prompt_pattern: str | None = None
-    end_patterns: list[str] = None
+    end_patterns: list[str] | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.end_patterns is None:
             self.end_patterns = []
 
@@ -39,7 +39,7 @@ class PTYSession:
             config: PTY configuration.
         """
         self.config = config
-        self._process: pexpect.spawn | None = None
+        self._process: pexpect.spawn[str] | None = None
         self._lock = asyncio.Lock()
 
     @property
@@ -100,9 +100,17 @@ class PTYSession:
         if not self.is_running:
             raise RuntimeError("PTY session not running")
 
-        patterns = end_patterns or self.config.end_patterns or [pexpect.EOF]
+        patterns: list[str | type[pexpect.EOF]]
+        if end_patterns:
+            patterns = list(end_patterns)  # Copy to ensure correct type
+        elif self.config.end_patterns:
+            patterns = list(self.config.end_patterns)
+        else:
+            patterns = [pexpect.EOF]
 
         # Send the input
+        if self._process is None:
+            raise RuntimeError("PTY session not running")
         self._process.sendline(text)
 
         # Buffer for accumulating output
@@ -111,6 +119,8 @@ class PTYSession:
         while True:
             try:
                 # Read available data
+                if self._process is None:
+                    return
                 chunk = self._process.read_nonblocking(size=1024, timeout=0.1)
                 if chunk:
                     buffer += chunk

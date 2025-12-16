@@ -227,7 +227,7 @@ def models_test(
         console.print(f"[red]Error: {e}[/red]")
         raise typer.Exit(1) from None
 
-    async def run_test():
+    async def run_test() -> bool:
         # Check availability
         available = await adapter.is_available()
         if available:

@@ -4,6 +4,7 @@ import json
 import sqlite3
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from cli_cih.storage.models import (
     HistoryMessage,
@@ -218,6 +219,18 @@ class HistoryStorage:
 
             return [self._row_to_session(row) for row in rows]
 
+    @staticmethod
+    def _escape_like(text: str) -> str:
+        """Escape special characters for LIKE query.
+
+        Args:
+            text: Text to escape.
+
+        Returns:
+            Escaped text safe for LIKE queries.
+        """
+        return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
     async def search(self, query: str, limit: int = 20) -> list[Session]:
         """Search sessions by query content.
 
@@ -228,7 +241,9 @@ class HistoryStorage:
         Returns:
             List of matching sessions.
         """
-        search_pattern = f"%{query}%"
+        # Escape special LIKE characters to prevent SQL injection patterns
+        escaped_query = self._escape_like(query)
+        search_pattern = f"%{escaped_query}%"
 
         with self._get_connection() as conn:
             rows = conn.execute(
@@ -236,9 +251,9 @@ class HistoryStorage:
                 SELECT DISTINCT s.* FROM sessions s
                 LEFT JOIN messages m ON s.id = m.session_id
                 LEFT JOIN results r ON s.id = r.session_id
-                WHERE s.user_query LIKE ?
-                   OR m.content LIKE ?
-                   OR r.summary LIKE ?
+                WHERE s.user_query LIKE ? ESCAPE '\\'
+                   OR m.content LIKE ? ESCAPE '\\'
+                   OR r.summary LIKE ? ESCAPE '\\'
                 ORDER BY s.created_at DESC
                 LIMIT ?
             """,
@@ -261,7 +276,7 @@ class HistoryStorage:
             conn.commit()
             return cursor.rowcount > 0
 
-    async def get_stats(self) -> dict:
+    async def get_stats(self) -> dict[str, Any]:
         """Get storage statistics.
 
         Returns:
@@ -277,7 +292,7 @@ class HistoryStorage:
             total_messages = conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
 
             # AI usage stats
-            ai_usage = {}
+            ai_usage: dict[str, int] = {}
             rows = conn.execute("SELECT participating_ais FROM sessions").fetchall()
 
             for row in rows:

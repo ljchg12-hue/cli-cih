@@ -374,8 +374,8 @@ class ConflictResolver:
         all_text = " ".join(m.content for m in context.messages)
 
         for pattern in tech_patterns:
-            if re.search(pattern, all_text, re.IGNORECASE):
-                match = re.search(pattern, all_text, re.IGNORECASE)
+            match = re.search(pattern, all_text, re.IGNORECASE)
+            if match:
                 return f"Choice of {match.group(0)}"
 
         # Fall back to original prompt

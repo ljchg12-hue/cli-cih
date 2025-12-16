@@ -11,6 +11,7 @@ Phase 5: Refactored to use orchestration modules (no duplication)
 
 import asyncio
 import json
+import logging
 import os
 import shutil
 import time
@@ -20,13 +21,21 @@ from typing import Any, Literal
 import httpx
 from fastmcp import FastMCP
 
+from cli_cih.mcp.exceptions import (
+    MCPAdapterError,
+    MCPTimeoutError,
+    MCPValidationError,
+)
 from cli_cih.orchestration.ai_selector import AISelector
+
+# 로깅 설정
+logger = logging.getLogger(__name__)
 
 # ═══════════════════════════════════════════════
 # Import from orchestration (NO DUPLICATION)
 # ═══════════════════════════════════════════════
-from cli_cih.orchestration.task_analyzer import TaskAnalyzer
-from cli_cih.storage.history import get_history_storage
+from cli_cih.orchestration.task_analyzer import TaskAnalyzer  # noqa: E402
+from cli_cih.storage.history import get_history_storage  # noqa: E402
 
 # ═══════════════════════════════════════════════
 # MCP Server 초기화
@@ -51,8 +60,9 @@ _ai_selector = AISelector()
 def get_cli_path(name: str) -> str:
     """CLI 실행 파일 경로 찾기 (환경변수 > which > 기본값)."""
     env_key = f"{name.upper()}_BIN"
-    if os.getenv(env_key):
-        return os.getenv(env_key)
+    env_path = os.getenv(env_key)
+    if env_path:
+        return env_path
     path = shutil.which(name)
     if path:
         return path
@@ -76,6 +86,46 @@ KOREAN_SYSTEM_PROMPT = (
     "사용자의 질문에 한국어로 명확하고 도움이 되게 답변해 주세요."
 )
 
+# 허용된 AI 이름
+VALID_AI_NAMES = {"claude", "codex", "gemini", "ollama", "copilot"}
+
+# Subprocess 명령어 화이트리스트
+ALLOWED_COMMANDS: dict[str, set[str]] = {
+    "claude": {"-p", "--print", "--version", "--help"},
+    "codex": {"exec", "--skip-git-repo-check", "--version", "--help"},
+    "gemini": {"-p", "--version", "--help"},
+    "copilot": {"explain", "suggest", "--version", "--help"},
+}
+
+
+def validate_command(command: list[str]) -> bool:
+    """명령어 화이트리스트 검증.
+
+    Args:
+        command: 실행할 명령어 리스트
+
+    Returns:
+        True if command is allowed, False otherwise.
+    """
+    if not command:
+        return False
+
+    # 경로에서 명령어만 추출
+    base_cmd = command[0].split("/")[-1]
+
+    if base_cmd not in ALLOWED_COMMANDS:
+        return False
+
+    allowed_args = ALLOWED_COMMANDS[base_cmd]
+
+    # 인자 검증 (플래그만 체크, 일반 인자는 허용)
+    for arg in command[1:]:
+        if arg.startswith("-") and arg not in allowed_args:
+            # 알 수 없는 플래그
+            return False
+
+    return True
+
 
 # ═══════════════════════════════════════════════
 # Standard Response Schema
@@ -87,11 +137,11 @@ class MCPResponse:
     """Standardized MCP tool response."""
 
     success: bool
-    data: dict | None = None
+    data: dict[str, Any] | None = None
     error: str | None = None
-    metadata: dict | None = None
+    metadata: dict[str, Any] | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "success": self.success,
             "data": self.data,
@@ -102,17 +152,32 @@ class MCPResponse:
 
 def make_response(
     success: bool,
-    data: dict | None = None,
+    data: dict[str, Any] | None = None,
     error: str | None = None,
+    error_type: str | None = None,
     duration_ms: int | None = None,
     ai_used: list[str] | None = None,
-) -> dict:
-    """Create standardized response."""
-    metadata = {}
+) -> dict[str, Any]:
+    """Create standardized response.
+
+    Args:
+        success: Whether the operation succeeded.
+        data: Response data.
+        error: Error message if failed.
+        error_type: Error type (validation, timeout, adapter, gateway, internal).
+        duration_ms: Operation duration in milliseconds.
+        ai_used: List of AI names used.
+
+    Returns:
+        Standardized response dictionary.
+    """
+    metadata: dict[str, Any] = {}
     if duration_ms is not None:
         metadata["duration_ms"] = duration_ms
     if ai_used:
         metadata["ai_used"] = ai_used
+    if error_type:
+        metadata["error_type"] = error_type
 
     return MCPResponse(
         success=success,
@@ -127,16 +192,31 @@ def make_response(
 # ═══════════════════════════════════════════════
 
 
-async def run_cli_async(command: list[str], timeout: int = 120) -> dict:
+async def run_cli_async(
+    command: list[str],
+    timeout: int = 120,
+    skip_validation: bool = False,
+) -> dict[str, Any]:
     """CLI 명령어 비동기로 안전하게 실행.
 
     Args:
         command: 실행할 명령어 리스트
         timeout: 타임아웃 (초)
+        skip_validation: 화이트리스트 검증 건너뛰기 (--version 등)
 
     Returns:
         실행 결과 딕셔너리
+
+    Raises:
+        MCPValidationError: 허용되지 않은 명령어
+        MCPTimeoutError: 타임아웃 발생
+        MCPAdapterError: 실행 오류
     """
+    # 명령어 화이트리스트 검증
+    if not skip_validation and not validate_command(command):
+        logger.warning(f"허용되지 않은 명령어 시도: {command}")
+        raise MCPValidationError(f"허용되지 않은 명령어: {command[0]}")
+
     try:
         env = os.environ.copy()
         env["TERM"] = "dumb"
@@ -161,18 +241,23 @@ async def run_cli_async(command: list[str], timeout: int = 120) -> dict:
                 "returncode": process.returncode,
                 "success": process.returncode == 0,
             }
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             process.kill()
             await process.wait()
-            return {"error": f"Timeout after {timeout}s", "success": False}
+            logger.error(f"타임아웃: {command[0]} ({timeout}초)")
+            raise MCPTimeoutError(f"타임아웃 ({timeout}초): {command[0]}") from e
 
-    except FileNotFoundError:
-        return {"error": f"Command not found: {command[0]}", "success": False}
+    except FileNotFoundError as e:
+        logger.error(f"명령어 없음: {command[0]}")
+        raise MCPAdapterError(f"명령어 없음: {command[0]}") from e
+    except (MCPValidationError, MCPTimeoutError):
+        raise
     except Exception as e:
-        return {"error": str(e), "success": False}
+        logger.exception(f"CLI 실행 오류: {e}")
+        raise MCPAdapterError(f"실행 오류: {e}") from e
 
 
-async def call_ollama(prompt: str, model: str = "llama3.1:70b") -> dict:
+async def call_ollama(prompt: str, model: str = "llama3.1:70b") -> dict[str, Any]:
     """Ollama HTTP API 직접 호출."""
     url = f"{OLLAMA_ENDPOINT}/api/chat"
     payload = {
@@ -221,15 +306,15 @@ class DockerGatewayClient:
             )
         return self._client
 
-    async def close(self):
+    async def close(self) -> None:
         if self._client:
             await self._client.aclose()
             self._client = None
 
-    async def _request_with_retry(self, method: str, path: str, **kwargs) -> httpx.Response:
+    async def _request_with_retry(self, method: str, path: str, **kwargs: Any) -> httpx.Response:
         """Make request with retry logic."""
         client = await self._get_client()
-        last_error = None
+        last_error: httpx.RequestError | None = None
 
         for attempt in range(self.max_retries):
             try:
@@ -243,9 +328,11 @@ class DockerGatewayClient:
                 if attempt < self.max_retries - 1:
                     await asyncio.sleep(0.5 * (attempt + 1))  # Backoff
 
-        raise last_error
+        if last_error is not None:
+            raise last_error
+        raise RuntimeError("Request failed with no error captured")
 
-    async def list_servers(self) -> dict:
+    async def list_servers(self) -> dict[str, Any]:
         """등록된 MCP 서버 목록 조회."""
         try:
             response = await self._request_with_retry("GET", "/servers")
@@ -255,7 +342,7 @@ class DockerGatewayClient:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def find_server(self, query: str, limit: int = 10) -> dict:
+    async def find_server(self, query: str, limit: int = 10) -> dict[str, Any]:
         """서버 검색 (mcp-find)."""
         try:
             response = await self._request_with_retry(
@@ -271,9 +358,9 @@ class DockerGatewayClient:
         self,
         server: str,
         tool: str,
-        arguments: dict | None = None,
+        arguments: dict[str, Any] | None = None,
         timeout: float = 60.0,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """MCP 서버의 도구 호출 (mcp-exec) with timeout."""
         try:
             client = await self._get_client()
@@ -289,7 +376,7 @@ class DockerGatewayClient:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def get_server_tools(self, server: str) -> dict:
+    async def get_server_tools(self, server: str) -> dict[str, Any]:
         """특정 서버의 도구 목록 조회."""
         try:
             response = await self._request_with_retry("GET", f"/servers/{server}/tools")
@@ -299,7 +386,7 @@ class DockerGatewayClient:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
-    async def check_health(self) -> dict:
+    async def check_health(self) -> dict[str, Any]:
         """Gateway 상태 확인."""
         try:
             response = await self._request_with_retry("GET", "/health")
@@ -329,7 +416,7 @@ def get_gateway_client() -> DockerGatewayClient:
 
 
 @mcp.tool()
-async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict:
+async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict[str, Any]:
     """
     빠른 단일 AI 응답 (간단한 질문용)
 
@@ -344,6 +431,13 @@ async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict:
     start = time.time()
 
     try:
+        # 입력 검증
+        if not prompt or not prompt.strip():
+            raise MCPValidationError("프롬프트가 비어있습니다")
+
+        if ai not in VALID_AI_NAMES:
+            raise MCPValidationError(f"유효하지 않은 AI: {ai}")
+
         if ai == "claude":
             result = await run_cli_async([CLAUDE_CMD, "-p", prompt], timeout=timeout)
         elif ai == "codex":
@@ -354,8 +448,12 @@ async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict:
             result = await run_cli_async([GEMINI_CMD, prompt], timeout=timeout)
         elif ai == "ollama":
             result = await call_ollama(prompt)
+        elif ai == "copilot":
+            result = await run_cli_async(
+                [COPILOT_CMD, "explain", prompt], timeout=timeout
+            )
         else:
-            return make_response(False, error=f"Unknown AI: {ai}")
+            raise MCPValidationError(f"Unknown AI: {ai}")
 
         duration = int((time.time() - start) * 1000)
 
@@ -378,14 +476,35 @@ async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict:
                     ai_used=[ai, "ollama"],
                 )
 
-        return make_response(False, error=result.get("error", "Unknown error"))
+        return make_response(
+            False,
+            error=result.get("error", "Unknown error"),
+            error_type="adapter",
+        )
+
+    except MCPValidationError as e:
+        logger.warning(f"검증 오류: {e}")
+        return make_response(False, error=str(e), error_type="validation")
+
+    except MCPTimeoutError as e:
+        logger.error(f"타임아웃: {e}")
+        return make_response(False, error=str(e), error_type="timeout")
+
+    except MCPAdapterError as e:
+        logger.error(f"어댑터 오류: {e}")
+        return make_response(False, error=str(e), error_type="adapter")
 
     except Exception as e:
-        return make_response(False, error=str(e))
+        logger.exception(f"예상치 못한 오류: {e}")
+        return make_response(
+            False,
+            error=f"내부 오류: {type(e).__name__}",
+            error_type="internal",
+        )
 
 
 @mcp.tool()
-async def cih_analyze(prompt: str) -> dict:
+async def cih_analyze(prompt: str) -> dict[str, Any]:
     """
     작업 분석 - 프롬프트를 분석하여 최적의 AI 조합 추천
     Uses orchestration.TaskAnalyzer (no duplication)
@@ -438,7 +557,7 @@ async def cih_discuss(
     max_rounds: int = 2,
     include_synthesis: bool = True,
     timeout: int = 90,
-) -> dict:
+) -> dict[str, Any]:
     """
     멀티 AI 토론 - 여러 AI의 의견을 수집하고 종합
 
@@ -467,15 +586,16 @@ async def cih_discuss(
 
         # 간단한 질문은 빠른 응답으로 리다이렉트
         if not task.requires_multi_ai:
-            quick_result = await cih_quick(prompt)
-            quick_result["data"]["note"] = "Simple question - redirected to quick response"
-            return quick_result
+            quick_result = await cih_quick(prompt)  # type: ignore[operator]
+            if isinstance(quick_result, dict) and "data" in quick_result:
+                quick_result["data"]["note"] = "Simple question - redirected to quick response"
+            return quick_result  # type: ignore[no-any-return]
 
-        responses = {}
-        errors = []
+        responses: dict[str, dict[str, Any]] = {}
+        errors: list[str] = []
 
         # 병렬로 AI 호출
-        async def call_ai(ai_name: str):
+        async def call_ai(ai_name: str) -> tuple[str, dict[str, Any]]:
             if ai_name == "claude":
                 result = await run_cli_async([CLAUDE_CMD, "-p", prompt], timeout=timeout)
                 if result["success"]:
@@ -512,11 +632,11 @@ async def cih_discuss(
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for result in results:
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 errors.append(str(result))
             else:
-                ai_name, response = result
-                responses[ai_name] = response
+                ai_name_result, response = result
+                responses[ai_name_result] = response
 
         # 종합 (Claude로 요청)
         synthesis = None
@@ -568,7 +688,7 @@ async def cih_compare(
     prompt: str,
     ais: list[str] | None = None,
     timeout: int = 90,
-) -> dict:
+) -> dict[str, Any]:
     """
     AI 응답 비교 - 동일 질문에 대한 여러 AI 응답을 나란히 비교
 
@@ -582,14 +702,14 @@ async def cih_compare(
     """
     if ais is None:
         ais = ["claude", "codex", "gemini"]
-    result = await cih_discuss(prompt, ais=ais, include_synthesis=True, timeout=timeout)
-    if result.get("data"):
+    result = await cih_discuss(prompt, ais=ais, include_synthesis=True, timeout=timeout)  # type: ignore[operator]
+    if isinstance(result, dict) and result.get("data"):
         result["data"]["mode"] = "comparison"
-    return result
+    return result  # type: ignore[no-any-return]
 
 
 @mcp.tool()
-async def cih_status() -> dict:
+async def cih_status() -> dict[str, Any]:
     """
     CLI-CIH 상태 확인 - 사용 가능한 AI와 연결 상태
 
@@ -668,7 +788,7 @@ async def cih_smart(
     prompt: str,
     task_type: Literal["code", "debug", "design", "research", "explain", "general"] | None = None,
     timeout: int = 90,
-) -> dict:
+) -> dict[str, Any]:
     """
     스마트 라우팅 - 작업 유형에 따라 최적 AI 자동 선택
 
@@ -684,12 +804,15 @@ async def cih_smart(
 
     try:
         # 작업 유형 결정 (using TaskAnalyzer)
+        resolved_task_type: str
         if task_type is None:
             task = _task_analyzer.analyze(prompt)
-            task_type = task.task_type.value
+            resolved_task_type = task.task_type.value
+        else:
+            resolved_task_type = task_type
 
         # 라우팅 로직
-        routing = {
+        routing: dict[str, tuple[str, str]] = {
             "code": ("codex", "코드 특화"),
             "debug": ("codex", "디버깅 특화"),
             "design": ("claude", "설계/아키텍처 특화"),
@@ -699,7 +822,7 @@ async def cih_smart(
             "simple_chat": ("claude", "빠른 응답"),
         }
 
-        ai, reason = routing.get(task_type, ("claude", "기본값"))
+        ai, reason = routing.get(resolved_task_type, ("claude", "기본값"))
 
         # AI 호출
         if ai == "codex":
@@ -719,7 +842,7 @@ async def cih_smart(
                 data={
                     "response": result["stdout"],
                     "selected_ai": ai,
-                    "task_type": task_type,
+                    "task_type": resolved_task_type,
                     "routing_reason": reason,
                 },
                 duration_ms=duration,
@@ -742,7 +865,7 @@ async def cih_smart(
 
 
 @mcp.tool()
-async def cih_history(limit: int = 10, search: str | None = None) -> dict:
+async def cih_history(limit: int = 10, search: str | None = None) -> dict[str, Any]:
     """
     대화 히스토리 조회
 
@@ -787,7 +910,7 @@ async def cih_history(limit: int = 10, search: str | None = None) -> dict:
 
 
 @mcp.tool()
-async def cih_history_detail(session_id: str, format: str = "json") -> dict:
+async def cih_history_detail(session_id: str, format: str = "json") -> dict[str, Any]:
     """
     대화 히스토리 상세 조회
 
@@ -845,7 +968,7 @@ async def cih_history_detail(session_id: str, format: str = "json") -> dict:
 
 
 @mcp.tool()
-async def cih_models() -> dict:
+async def cih_models() -> dict[str, Any]:
     """
     사용 가능한 AI 모델 목록 (상세)
 
@@ -907,7 +1030,7 @@ async def cih_models() -> dict:
 
 
 @mcp.tool()
-async def cih_stats() -> dict:
+async def cih_stats() -> dict[str, Any]:
     """
     CLI-CIH 사용 통계
 
@@ -936,7 +1059,7 @@ async def cih_stats() -> dict:
 
 
 @mcp.tool()
-async def cih_gateway_status() -> dict:
+async def cih_gateway_status() -> dict[str, Any]:
     """
     Docker MCP Gateway 상태 확인 (상세)
 
@@ -992,7 +1115,7 @@ async def cih_gateway_status() -> dict:
 
 
 @mcp.tool()
-async def cih_gateway_find(query: str, limit: int = 10) -> dict:
+async def cih_gateway_find(query: str, limit: int = 10) -> dict[str, Any]:
     """
     Docker Gateway에서 MCP 서버 검색
 
@@ -1024,7 +1147,7 @@ async def cih_gateway_find(query: str, limit: int = 10) -> dict:
 
 
 @mcp.tool()
-async def cih_gateway_tools(server: str) -> dict:
+async def cih_gateway_tools(server: str) -> dict[str, Any]:
     """
     Docker Gateway 서버의 도구 목록 조회
 
@@ -1062,7 +1185,7 @@ async def cih_gateway_exec(
     tool: str,
     arguments: dict[str, Any] | None = None,
     timeout: float = 60.0,
-) -> dict:
+) -> dict[str, Any]:
     """
     Docker Gateway를 통해 MCP 도구 실행
 
@@ -1101,7 +1224,7 @@ async def cih_gateway_exec(
 async def cih_gateway_multi_exec(
     calls: list[dict[str, Any]],
     timeout: float = 60.0,
-) -> dict:
+) -> dict[str, Any]:
     """
     Docker Gateway를 통해 여러 MCP 도구 병렬 실행
 
@@ -1120,7 +1243,7 @@ async def cih_gateway_multi_exec(
     try:
         client = get_gateway_client()
 
-        async def exec_call(call_spec: dict):
+        async def exec_call(call_spec: dict[str, Any]) -> dict[str, Any]:
             server = call_spec.get("server", "")
             tool = call_spec.get("tool", "")
             args = call_spec.get("arguments", {})
@@ -1130,9 +1253,9 @@ async def cih_gateway_multi_exec(
         tasks = [exec_call(call) for call in calls]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        processed = []
+        processed: list[dict[str, Any]] = []
         for i, result in enumerate(results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 processed.append(
                     {
                         "server": calls[i].get("server"),
@@ -1166,7 +1289,7 @@ async def cih_gateway_multi_exec(
 # ═══════════════════════════════════════════════
 
 
-def run_server():
+def run_server() -> None:
     """MCP 서버 실행."""
     mcp.run(transport="stdio")
 

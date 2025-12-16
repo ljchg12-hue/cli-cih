@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "cli-cih"
-version = "1.1.0"
+version = "1.2.0"
 description = "Multi-AI Collaboration CLI Tool - Interactive terminal interface for orchestrating multiple AI assistants"
 readme = "README.md"
 license = {text = "MIT"}
@@ -36,15 +36,17 @@ dependencies = [
     "pyyaml>=6.0",
     "pydantic>=2.7",
     "fastmcp>=0.4",
-    "pytest-cov>=7.0.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
+    "pytest-cov>=7.0",
     "ruff>=0.4",
     "mypy>=1.10",
+    "types-pexpect>=4.9",
+    "types-pyyaml>=6.0",
 ]
 
 [project.scripts]
@@ -70,3 +72,4 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "C4"]
 [tool.mypy]
 python_version = "3.10"
 strict = true
+

@@ -83,7 +83,7 @@ class InteractiveSession:
         self.console = console or get_console()
         self.ai_name = ai_name
         self.adapter: AIAdapter | None = None
-        self.session: PromptSession | None = None
+        self.session: PromptSession[str] | None = None
         self._running = False
         self._interrupted = False
 
@@ -138,6 +138,8 @@ class InteractiveSession:
 
     def show_header(self) -> None:
         """Display the session header."""
+        if self.adapter is None:
+            return
         header = create_solo_header(
             version=__version__,
             ai_name=self.adapter.display_name,
@@ -165,7 +167,7 @@ class InteractiveSession:
             self.console.print(f"[red]{new_adapter.display_name}을(를) 사용할 수 없습니다[/red]")
             return False
 
-        old_name = self.adapter.name
+        old_name = self.adapter.name if self.adapter else "unknown"
         self.adapter = new_adapter
         self.ai_name = new_ai_name
 
@@ -244,6 +246,9 @@ class InteractiveSession:
         """
         self._interrupted = False
 
+        if self.adapter is None:
+            return
+
         streamer = StreamingDisplay(
             console=self.console,
             ai_name=self.adapter.display_name,
@@ -268,9 +273,10 @@ class InteractiveSession:
             message: User's message.
         """
 
-        async def stream_task():
+        async def stream_task() -> None:
             try:
-                await streamer.stream_response(self.adapter.send(message))
+                if self.adapter is not None:
+                    await streamer.stream_response(self.adapter.send(message))
             except asyncio.CancelledError:
                 pass
 
@@ -293,9 +299,11 @@ class InteractiveSession:
         while self._running:
             try:
                 # Get user input
+                if self.session is None:
+                    break
                 user_input = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: self.session.prompt(
+                    lambda: self.session.prompt(  # type: ignore[union-attr]
                         [("class:prompt", "You: ")],
                     ),
                 )
@@ -373,7 +381,7 @@ class DiscussionSession:
         self.console = console or get_console()
         self.coordinator = Coordinator(min_ais=min_ais, max_ais=max_ais)
         self.conflict_prompt = ConflictPrompt(console=self.console)
-        self.session: PromptSession | None = None
+        self.session: PromptSession[str] | None = None
         self._running = False
         self._available_adapters: list[AIAdapter] = []
         self._current_ai_buffer = ""
@@ -619,9 +627,11 @@ class DiscussionSession:
         while self._running:
             try:
                 # Get user input
+                if self.session is None:
+                    break
                 user_input = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: self.session.prompt(
+                    lambda: self.session.prompt(  # type: ignore[union-attr]
                         [("class:prompt", "You: ")],
                     ),
                 )

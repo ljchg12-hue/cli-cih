@@ -5,6 +5,68 @@ All notable changes to CLI-CIH will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-12-17
+
+### Added
+- **Phase 9: Type Hint Completion**
+  - mypy strict mode compliance (134 → 0 errors)
+  - Generic type parameters: `dict[str, Any]`, `list[str]`, `PromptSession[str]`
+  - Proper async iterator types with `AsyncIterator[str]`
+  - `TracebackType` annotations for `__aexit__` methods
+  - `TYPE_CHECKING` imports for circular dependency prevention
+
+### Changed
+- Added `types-pexpect` and `types-PyYAML` dev dependencies for mypy
+- Updated coordinator to use `Event | DiscussionEvent` union return type
+- Improved None guard patterns throughout codebase
+- Enhanced `pexpect.spawn[str]` type annotation for PTY manager
+
+### Fixed
+- Type compatibility issues in `_convert_event()` method
+- Invariant list type assignment in PTY patterns
+- Missing return type annotations in nested async functions
+
+### Testing
+- 206 tests passing
+- mypy strict mode: 0 errors in 43 source files
+- All ruff lint checks passing
+
+---
+
+## [1.1.2] - 2025-12-17
+
+### Added
+- **MCP Exception Hierarchy** (`mcp/exceptions.py`)
+  - `MCPError`, `MCPTimeoutError`, `MCPValidationError`, `MCPAdapterError`, `MCPGatewayError`
+  - Proper exception handling in MCP server tools
+
+- **Command Whitelist Security** (`mcp/server.py`)
+  - `validate_command()` function for subprocess argument validation
+  - Whitelist for allowed CLI arguments per adapter
+
+### Fixed
+- **LIKE Query SQL Injection** (`storage/history.py`)
+  - Added `_escape_like()` method to escape `%`, `_`, `\` characters
+  - Search queries now use proper `ESCAPE '\\'` clause
+
+- **Language Consistency**
+  - Unified system prompts in `orchestration/context.py` to Korean
+
+- **README vs Implementation Alignment**
+  - Interactive commands now reflect actual implementation
+  - Added "Planned Features" section for unimplemented commands
+
+### Changed
+- Added logging to MCP server module
+- Added TODO comment to unused `_select_with_diversity` method
+- Updated version badges in README
+
+### Testing
+- 206 tests passing (added command validation test)
+- All ruff lint checks passing
+
+---
+
 ## [1.1.1] - 2025-12-17
 
 ### Fixed

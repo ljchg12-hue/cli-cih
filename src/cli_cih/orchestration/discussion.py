@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
+from typing import Any
 
 from cli_cih.adapters import AdapterError, AIAdapter
 from cli_cih.orchestration.context import SharedContext
@@ -252,7 +253,7 @@ class DiscussionManager:
         consensus_ratio = agreement_count / len(recent_messages)
         return consensus_ratio >= self.config.consensus_threshold
 
-    def get_discussion_summary(self) -> dict:
+    def get_discussion_summary(self) -> dict[str, Any]:
         """Get summary of the discussion."""
         return {
             "total_rounds": self.state.current_round,

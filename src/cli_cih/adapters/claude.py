@@ -55,7 +55,7 @@ class ClaudeAdapter(AIAdapter):
                 env=env,
             )
 
-            while True:
+            while process.stdout is not None:
                 chunk = await process.stdout.read(1024)
                 if not chunk:
                     break

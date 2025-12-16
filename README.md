@@ -5,8 +5,8 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PyPI version](https://badge.fury.io/py/cli-cih.svg)](https://badge.fury.io/py/cli-cih)
-[![Tests](https://img.shields.io/badge/tests-205%20passed-success.svg)](tests/)
-[![Version](https://img.shields.io/badge/version-1.1.0-brightgreen.svg)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/tests-206%20passed-success.svg)](tests/)
+[![Version](https://img.shields.io/badge/version-1.2.0-brightgreen.svg)](CHANGELOG.md)
 
 ## Features
 
@@ -99,15 +99,27 @@ When in interactive mode, use these commands:
 
 | Command | Description |
 |---------|-------------|
-| `/help` | Show available commands |
+| `/help` or `/h` | Show available commands |
+| `/clear` or `/c` | Clear conversation |
+| `/switch <ai>` | Switch to different AI (solo mode) |
+| `/solo <ai>` | Switch to solo mode with specific AI (discussion mode) |
+| `/models` | Show AI status |
+| `/exit` or `/quit` or `/q` | Exit interactive mode |
+
+### Planned Features (Not Yet Implemented)
+
+The following commands are planned for future releases:
+
+| Command | Description |
+|---------|-------------|
 | `/mode <mode>` | Change discussion mode |
 | `/add <ai>` | Add AI to discussion |
 | `/remove <ai>` | Remove AI from discussion |
 | `/vote` | Start voting on current topic |
-| `/clear` | Clear conversation |
-| `/exit` or `/quit` | Exit interactive mode |
 
 ## Discussion Modes
+
+Currently, CLI-CIH uses automatic AI selection based on task analysis. The following modes are planned:
 
 | Mode | Description |
 |------|-------------|
@@ -210,7 +222,7 @@ cli-cih/
 │   │   ├── retry.py           # Retry & circuit breaker
 │   │   └── text.py            # Text utilities
 │   └── main.py                # Entry point
-└── tests/                     # Test suite (205 tests)
+└── tests/                     # Test suite (206 tests)
 ```
 
 ## Examples

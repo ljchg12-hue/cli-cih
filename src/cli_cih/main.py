@@ -133,6 +133,8 @@ async def quick_query(question: str, ai_name: str | None = None) -> None:
             console.print("[dim]설치: claude, codex, gemini 또는 ollama serve 실행[/dim]")
             return
 
+    # At this point, adapter is guaranteed to be not None
+    assert adapter is not None
     ai_info = f"[{adapter.color}]{adapter.icon} {adapter.display_name}[/{adapter.color}]"
     console.print(f"\n[dim]Using:[/dim] {ai_info}")
     console.print(f"[dim]Question:[/dim] {question}\n")

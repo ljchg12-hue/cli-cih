@@ -50,7 +50,7 @@ class AdapterConfig:
     endpoint: str | None = None
     max_retries: int = 3
     retry_delay: float = 1.0
-    extra: dict = field(default_factory=dict)
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -61,7 +61,7 @@ class AdapterResponse:
     model: str | None = None
     tokens_used: int | None = None
     elapsed_time: float | None = None
-    raw_response: dict | None = None
+    raw_response: dict[str, Any] | None = None
 
 
 class AIAdapter(ABC):
@@ -193,7 +193,7 @@ class AIAdapter(ABC):
             elapsed_time=elapsed,
         )
 
-    async def health_check(self) -> dict:
+    async def health_check(self) -> dict[str, Any]:
         """Perform a health check on the adapter.
 
         Returns:
@@ -222,9 +222,9 @@ class AIAdapter(ABC):
     async def _retry_operation(
         self,
         operation: Callable[..., Any],
-        *args,
+        *args: Any,
         operation_name: str = "operation",
-        **kwargs,
+        **kwargs: Any,
     ) -> Any:
         """Execute an operation with retry logic.
 

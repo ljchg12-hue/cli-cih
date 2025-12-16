@@ -1,6 +1,7 @@
 """Approval prompt UI for CLI-CIH."""
 
 import asyncio
+from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
@@ -270,9 +271,9 @@ class ApprovalPrompt:
 """
         self.console.print(help_text)
 
-    async def _get_modifications(self, action: Action) -> dict:
+    async def _get_modifications(self, action: Action) -> dict[str, Any]:
         """Get user modifications to the action."""
-        modifications = {}
+        modifications: dict[str, Any] = {}
 
         self.console.print()
         self.console.print("[yellow]Enter modifications (empty to skip):[/yellow]")
@@ -292,7 +293,7 @@ class ApprovalPrompt:
             mod = await self._get_input("Skip commands (numbers, comma-separated): ")
             if mod.strip():
                 modifications["skip_commands"] = [
-                    int(n.strip()) for n in mod.split(",") if n.strip().isdigit()
+                    str(n.strip()) for n in mod.split(",") if n.strip().isdigit()
                 ]
 
         return modifications

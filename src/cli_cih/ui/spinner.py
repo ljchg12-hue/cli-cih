@@ -1,6 +1,8 @@
 """Loading indicator utilities for CLI-CIH."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from types import TracebackType
 
 from rich.console import Console
 from rich.live import Live
@@ -38,7 +40,12 @@ class LoadingIndicator:
         self._live.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Stop the loading indicator."""
         self._active = False
         if self._live:
@@ -63,7 +70,7 @@ async def loading(
     message: str = "처리 중...",
     spinner: str = "dots",
     console: Console | None = None,
-):
+) -> AsyncIterator[LoadingIndicator]:
     """Async context manager for showing a loading spinner.
 
     Usage:

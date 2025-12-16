@@ -80,7 +80,7 @@ class CodexAdapter(AIAdapter):
 
             # Read streaming output
             buffer = ""
-            while True:
+            while proc.stdout is not None:
                 try:
                     chunk = await asyncio.wait_for(proc.stdout.read(1024), timeout=1.0)
                     if not chunk:
@@ -100,7 +100,7 @@ class CodexAdapter(AIAdapter):
             await asyncio.wait_for(proc.wait(), timeout=5.0)
 
             # Only show error if no output was produced
-            if not buffer:
+            if not buffer and proc.stderr is not None:
                 stderr = await proc.stderr.read()
                 if stderr:
                     error_msg = stderr.decode("utf-8", errors="ignore").strip()

@@ -3,6 +3,7 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 
 @dataclass
@@ -15,7 +16,7 @@ class Message:
     timestamp: datetime = field(default_factory=datetime.now)
     token_count: int = 0
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # Rough token estimation (4 chars per token)
         if self.token_count == 0:
             self.token_count = len(self.content) // 4
@@ -136,23 +137,24 @@ class SharedContext:
         """
         parts = []
 
-        # System context
-        parts.append("You are participating in a collaborative AI discussion.")
-        parts.append("Multiple AIs are working together to help the user.")
-        parts.append("Be concise but thorough. Build on others' ideas.")
-        parts.append("If you agree, say so briefly and add value.")
-        parts.append("If you disagree, explain why constructively.")
+        # System context (한국어)
+        parts.append("당신은 멀티 AI 토론에 참여하고 있습니다.")
+        parts.append("여러 AI가 함께 협력하여 사용자를 돕고 있습니다.")
+        parts.append("간결하면서도 철저하게 답변하세요. 다른 AI의 아이디어를 발전시키세요.")
+        parts.append("동의하면 간단히 표현하고 가치를 추가하세요.")
+        parts.append("동의하지 않으면 건설적으로 이유를 설명하세요.")
+        parts.append("한국어로 응답해주세요.")
         parts.append("")
 
         # Original question
-        parts.append(f"USER'S QUESTION: {self.original_prompt}")
+        parts.append(f"사용자 질문: {self.original_prompt}")
         parts.append("")
 
         if is_first_round:
-            parts.append("This is the first round. Share your initial thoughts.")
+            parts.append("첫 번째 라운드입니다. 초기 생각을 공유하세요.")
         else:
             # Include discussion history
-            parts.append("DISCUSSION SO FAR:")
+            parts.append("지금까지의 토론:")
             parts.append("")
 
             # Get recent messages, prioritizing other AIs
@@ -166,20 +168,20 @@ class SharedContext:
 
             # Add key points if available
             if self.key_points:
-                parts.append("KEY POINTS IDENTIFIED:")
+                parts.append("핵심 포인트:")
                 for point in self.key_points[-5:]:
                     parts.append(f"  {point}")
                 parts.append("")
 
-            parts.append(f"Now it's your turn ({ai_name}). Respond to the discussion.")
-            parts.append("Add new insights or build on what others have said.")
+            parts.append(f"이제 당신 차례입니다 ({ai_name}). 토론에 응답하세요.")
+            parts.append("새로운 통찰을 추가하거나 다른 AI의 의견을 발전시키세요.")
 
         return "\n".join(parts)
 
     def _get_context_messages(self, current_ai: str) -> list[Message]:
         """Get messages to include in context, respecting token limits."""
         # Start with most recent messages
-        messages = []
+        messages: list[Message] = []
         token_count = 0
 
         for msg in reversed(self.messages):
@@ -204,9 +206,9 @@ class SharedContext:
 
         return "".join(parts)
 
-    def get_summary(self) -> dict:
+    def get_summary(self) -> dict[str, Any]:
         """Get a summary of the discussion."""
-        ai_contributions = {}
+        ai_contributions: dict[str, dict[str, int]] = {}
         for ai_name, count in self.ai_message_counts.items():
             messages = self.get_messages_by_ai(ai_name)
             total_tokens = sum(m.token_count for m in messages)

@@ -3,6 +3,7 @@
 import asyncio
 import re
 from collections.abc import AsyncIterator
+from types import TracebackType
 
 from rich.console import Console
 from rich.live import Live
@@ -146,12 +147,17 @@ class ThinkingIndicator:
             self._live.stop()
             self._live = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "ThinkingIndicator":
         """Async context manager entry."""
         self.start()
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> bool:
         """Async context manager exit."""
         self.stop()
         return False

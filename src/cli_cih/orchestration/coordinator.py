@@ -3,6 +3,7 @@
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
+from typing import Any
 
 from cli_cih.adapters import AIAdapter
 from cli_cih.orchestration.ai_selector import AISelector
@@ -262,7 +263,7 @@ class Coordinator:
         self,
         user_input: str,
         available_adapters: list[AIAdapter] | None = None,
-    ) -> AsyncIterator[Event]:
+    ) -> AsyncIterator[Event | DiscussionEvent]:
         """Process a user input through the full discussion pipeline.
 
         Args:
@@ -312,14 +313,15 @@ class Coordinator:
 
         # 4. Run discussion with conflict detection
         current_round = 0
-        async for event in self.discussion.run(task, adapters, self._context):
+        discussion_event: DiscussionEvent
+        async for discussion_event in self.discussion.run(task, adapters, self._context):
             # Convert discussion events to coordinator events
-            converted = self._convert_event(event)
+            converted = self._convert_event(discussion_event)
             yield converted
 
             # Track round for conflict detection
-            if isinstance(event, RoundEndEvent):
-                current_round = event.round_num
+            if isinstance(discussion_event, RoundEndEvent):
+                current_round = discussion_event.round_num
 
                 # Check for conflicts after each round (starting from round 2)
                 if self.enable_conflict_detection and current_round >= 2:
@@ -385,7 +387,7 @@ class Coordinator:
             )
 
             # Update context with user's decision
-            if user_choice and user_choice != "more":
+            if user_choice and user_choice != "more" and self._context is not None:
                 self._context.add_key_point(f"User chose: {user_choice}")
 
         return ConflictResolvedEvent(
@@ -394,7 +396,7 @@ class Coordinator:
             user_choice=user_choice,
         )
 
-    def _convert_event(self, event: DiscussionEvent) -> Event:
+    def _convert_event(self, event: DiscussionEvent) -> Event | DiscussionEvent:
         """Convert discussion event to coordinator event."""
         if isinstance(event, RoundStartEvent):
             return event  # Pass through
@@ -441,9 +443,11 @@ class Coordinator:
             if isinstance(event, ResultEvent):
                 result = event.result
 
+        if result is None:
+            raise RuntimeError("No result event received from discussion")
         return result
 
-    def get_current_state(self) -> dict:
+    def get_current_state(self) -> dict[str, Any]:
         """Get current coordinator state."""
         return {
             "task": self._current_task,
@@ -455,7 +459,7 @@ class Coordinator:
         self,
         user_input: str,
         available_adapters: list[AIAdapter] | None = None,
-    ) -> AsyncIterator[Event]:
+    ) -> AsyncIterator[Event | DiscussionEvent]:
         """Fast path for simple queries using a single AI.
 
         Uses parallel checking and graceful degradation (fallback to next AI on error).
@@ -530,7 +534,7 @@ class Coordinator:
                     total_rounds=1,
                     total_messages=1,
                     consensus_reached=True,
-                    ai_contributions={adapter.name: 100.0},
+                    ai_contributions={adapter.name: 100},
                 )
                 yield ResultEvent(result=result, context=self._context)
                 return  # Success - exit

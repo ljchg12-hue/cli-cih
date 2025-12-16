@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from rich.console import Console
 from rich.logging import RichHandler
@@ -32,7 +33,7 @@ def setup_logging(
         log_file = str(DEFAULT_LOG_DIR / "cli-cih.log")
 
     # Create handlers
-    handlers = []
+    handlers: list[logging.Handler] = []
 
     # Rich console handler (for terminal output)
     rich_handler = RichHandler(
@@ -92,9 +93,9 @@ class ContextLogger:
             name: Logger name.
         """
         self._logger = logging.getLogger(name)
-        self._context: dict = {}
+        self._context: dict[str, Any] = {}
 
-    def set_context(self, **kwargs) -> None:
+    def set_context(self, **kwargs: Any) -> None:
         """Set context information."""
         self._context.update(kwargs)
 
@@ -109,23 +110,23 @@ class ContextLogger:
             return f"[{ctx_str}] {message}"
         return message
 
-    def debug(self, message: str, **kwargs) -> None:
+    def debug(self, message: str, **kwargs: Any) -> None:
         """Log debug message."""
         self._logger.debug(self._format_message(message), **kwargs)
 
-    def info(self, message: str, **kwargs) -> None:
+    def info(self, message: str, **kwargs: Any) -> None:
         """Log info message."""
         self._logger.info(self._format_message(message), **kwargs)
 
-    def warning(self, message: str, **kwargs) -> None:
+    def warning(self, message: str, **kwargs: Any) -> None:
         """Log warning message."""
         self._logger.warning(self._format_message(message), **kwargs)
 
-    def error(self, message: str, **kwargs) -> None:
+    def error(self, message: str, **kwargs: Any) -> None:
         """Log error message."""
         self._logger.error(self._format_message(message), **kwargs)
 
-    def exception(self, message: str, **kwargs) -> None:
+    def exception(self, message: str, **kwargs: Any) -> None:
         """Log exception with traceback."""
         self._logger.exception(self._format_message(message), **kwargs)
 
@@ -158,7 +159,7 @@ def log_adapter_call(
 
 def log_discussion_event(
     event_type: str,
-    details: dict | None = None,
+    details: dict[str, Any] | None = None,
 ) -> None:
     """Log a discussion event for analytics.
 

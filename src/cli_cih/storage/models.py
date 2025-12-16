@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from typing import Any
 
 
 class SessionStatus(str, Enum):
@@ -34,7 +35,7 @@ class HistoryMessage:
     content: str
     created_at: datetime = field(default_factory=datetime.now)
     round_num: int = 0
-    metadata: dict = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def create(
@@ -44,7 +45,7 @@ class HistoryMessage:
         sender_id: str,
         content: str,
         round_num: int = 0,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> "HistoryMessage":
         """Create a new message with generated ID."""
         return cls(
@@ -126,7 +127,7 @@ class Session:
         sender_id: str,
         content: str,
         round_num: int = 0,
-        metadata: dict | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> HistoryMessage:
         """Add a message to the session."""
         message = HistoryMessage.create(

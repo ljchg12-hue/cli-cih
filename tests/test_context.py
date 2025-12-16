@@ -157,7 +157,8 @@ class TestSharedContextPromptBuilding:
         prompt = context.build_prompt_for("claude", is_first_round=True)
 
         assert "What is Python?" in prompt
-        assert "first round" in prompt.lower()
+        # Korean: "첫 번째 라운드" (first round)
+        assert "첫 번째 라운드" in prompt or "first round" in prompt.lower()
 
     def test_build_prompt_subsequent_round(self, context):
         """Subsequent round prompt should include discussion history."""
@@ -165,7 +166,8 @@ class TestSharedContextPromptBuilding:
         prompt = context.build_prompt_for("claude", is_first_round=False)
 
         assert "What is Python?" in prompt
-        assert "DISCUSSION SO FAR" in prompt
+        # Korean: "지금까지의 토론" (discussion so far)
+        assert "지금까지의 토론" in prompt or "DISCUSSION SO FAR" in prompt
         assert "GEMINI" in prompt
 
 

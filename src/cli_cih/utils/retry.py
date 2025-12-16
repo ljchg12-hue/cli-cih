@@ -71,10 +71,10 @@ def calculate_delay(
 
 async def retry_async(
     func: Callable[..., Any],
-    *args,
+    *args: Any,
     config: RetryConfig | None = None,
     on_retry: Callable[[int, Exception], None] | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> Any:
     """Execute an async function with retry logic.
 
@@ -126,7 +126,7 @@ def with_retry(
     max_retries: int = 3,
     base_delay: float = 1.0,
     retry_on: tuple[type[Exception], ...] | None = None,
-) -> Callable:
+) -> Callable[..., Any]:
     """Decorator to add retry logic to an async function.
 
     Args:
@@ -143,9 +143,9 @@ def with_retry(
         retry_on=retry_on,
     )
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs) -> Any:
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             return await retry_async(func, *args, config=config, **kwargs)
 
         return wrapper
@@ -244,8 +244,8 @@ class CircuitBreaker:
     async def execute(
         self,
         func: Callable[..., Any],
-        *args,
-        **kwargs,
+        *args: Any,
+        **kwargs: Any,
     ) -> Any:
         """Execute a function with circuit breaker protection.
 

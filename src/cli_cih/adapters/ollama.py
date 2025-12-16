@@ -2,6 +2,7 @@
 
 import json
 from collections.abc import AsyncIterator
+from typing import Any
 
 import httpx
 
@@ -63,7 +64,7 @@ class OllamaAdapter(AIAdapter):
         self._display_name_override: str | None = None
 
     @property
-    def name(self) -> str:
+    def name(self) -> str:  # type: ignore[override]
         """Return unique instance name for context key distinction."""
         if self._instance_id:
             return self._instance_id
@@ -106,8 +107,9 @@ class OllamaAdapter(AIAdapter):
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.get(f"{self._endpoint}/api/version")
                 if response.status_code == 200:
-                    data = response.json()
-                    return data.get("version", "unknown")
+                    data: dict[str, Any] = response.json()
+                    version: str = data.get("version", "unknown")
+                    return version
         except Exception:
             pass
         return "unknown"

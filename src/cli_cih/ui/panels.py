@@ -1,11 +1,15 @@
 """Panel components for CLI-CIH UI."""
 
+from typing import TYPE_CHECKING
 
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
 from cli_cih.ui.themes import AI_COLORS
+
+if TYPE_CHECKING:
+    from cli_cih.adapters import AIAdapter
 
 
 def create_ai_panel(
@@ -314,7 +318,7 @@ def create_task_info_panel(
 
 
 def create_ai_selection_panel(
-    adapters: list,
+    adapters: "list[AIAdapter]",
     explanation: str,
 ) -> Panel:
     """Create panel showing selected AIs.

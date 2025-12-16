@@ -235,7 +235,7 @@ class AISelector:
             count = 1  # Low: 1
 
         # Create Ollama instances with different models and unique IDs
-        instances = []
+        instances: list[AIAdapter] = []
         for i, profile in enumerate(profiles[:count]):
             from cli_cih.adapters.base import AdapterConfig
 
@@ -299,16 +299,22 @@ class AISelector:
             reason=reason,
         )
 
+    # TODO: 향후 select_ais()에서 사용할 다양성 기반 선택 알고리즘
+    # 현재는 단순 점수 기반 선택을 사용 중
     def _select_with_diversity(
         self,
         scores: list[AIScore],
         target_count: int,
     ) -> list[AIScore]:
-        """Select AIs while ensuring diversity and Gemini inclusion."""
+        """Select AIs while ensuring diversity and Gemini inclusion.
+
+        Note: Currently not integrated into select_ais(). Reserved for future use
+        when diversity-based selection is needed instead of pure score-based selection.
+        """
         if len(scores) <= target_count:
             return scores
 
-        selected = []
+        selected: list[AIScore] = []
         remaining = scores.copy()
 
         while len(selected) < target_count and remaining:

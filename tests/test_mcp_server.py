@@ -112,44 +112,56 @@ class TestRunCliAsync:
 
     @pytest.mark.asyncio
     async def test_successful_command(self):
-        """Successful command should return proper result."""
+        """Successful command should return proper result with whitelisted command."""
         from cli_cih.mcp.server import run_cli_async
 
-        result = await run_cli_async(["echo", "hello"], timeout=10)
+        # Use a mocked whitelisted command
+        with patch("cli_cih.mcp.server.validate_command", return_value=True):
+            result = await run_cli_async(["echo", "hello"], timeout=10)
 
-        assert result["success"] is True
-        assert "hello" in result["stdout"]
-        assert result["returncode"] == 0
+            assert result["success"] is True
+            assert "hello" in result["stdout"]
+            assert result["returncode"] == 0
 
     @pytest.mark.asyncio
     async def test_failed_command(self):
         """Failed command should return error info."""
         from cli_cih.mcp.server import run_cli_async
 
-        result = await run_cli_async(["false"], timeout=10)
+        with patch("cli_cih.mcp.server.validate_command", return_value=True):
+            result = await run_cli_async(["false"], timeout=10)
 
-        assert result["success"] is False
-        assert result["returncode"] != 0
+            assert result["success"] is False
+            assert result["returncode"] != 0
 
     @pytest.mark.asyncio
     async def test_command_not_found(self):
-        """Non-existent command should return error."""
+        """Non-existent command should raise MCPAdapterError."""
+        from cli_cih.mcp.exceptions import MCPAdapterError
         from cli_cih.mcp.server import run_cli_async
 
-        result = await run_cli_async(["nonexistent_command_xyz"], timeout=5)
-
-        assert result["success"] is False
-        assert "not found" in result.get("error", "").lower() or "error" in result
+        with patch("cli_cih.mcp.server.validate_command", return_value=True):
+            with pytest.raises(MCPAdapterError):
+                await run_cli_async(["nonexistent_command_xyz"], timeout=5)
 
     @pytest.mark.asyncio
     async def test_timeout(self):
-        """Command timeout should be handled."""
+        """Command timeout should raise MCPTimeoutError."""
+        from cli_cih.mcp.exceptions import MCPTimeoutError
         from cli_cih.mcp.server import run_cli_async
 
-        result = await run_cli_async(["sleep", "10"], timeout=1)
+        with patch("cli_cih.mcp.server.validate_command", return_value=True):
+            with pytest.raises(MCPTimeoutError):
+                await run_cli_async(["sleep", "10"], timeout=1)
 
-        assert result["success"] is False
-        assert "timeout" in result.get("error", "").lower()
+    @pytest.mark.asyncio
+    async def test_validation_rejects_unknown_command(self):
+        """Unknown commands should raise MCPValidationError."""
+        from cli_cih.mcp.exceptions import MCPValidationError
+        from cli_cih.mcp.server import run_cli_async
+
+        with pytest.raises(MCPValidationError):
+            await run_cli_async(["malicious_command", "--flag"], timeout=5)
 
 
 # ═══════════════════════════════════════════════
@@ -268,7 +280,8 @@ class TestCihQuick:
         result = await fn("Hello", ai="unknown_ai")
 
         assert result["success"] is False
-        assert "Unknown AI" in result["error"]
+        # Korean: "유효하지 않은 AI" or English "Unknown AI"
+        assert "유효하지 않은 AI" in result["error"] or "Unknown AI" in result["error"]
 
     @pytest.mark.asyncio
     async def test_quick_fallback_to_ollama(self):
