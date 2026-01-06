@@ -426,8 +426,7 @@ async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict[
         timeout: 타임아웃 (초)
 
     Returns:
-        표준화된 응답 {success, data, error, metadata}
-    """
+        표준화된 응답 {success, data, error, metadata}"""
     start = time.time()
 
     try:
@@ -513,8 +512,7 @@ async def cih_analyze(prompt: str) -> dict[str, Any]:
         prompt: 분석할 사용자 질문
 
     Returns:
-        작업 유형, 복잡도, 추천 AI 목록
-    """
+        작업 유형, 복잡도, 추천 AI 목록"""
     start = time.time()
 
     try:
@@ -569,8 +567,7 @@ async def cih_discuss(
         timeout: 각 AI 타임아웃 (초)
 
     Returns:
-        각 AI의 응답과 종합 결과
-    """
+        각 AI의 응답과 종합 결과"""
     start = time.time()
 
     try:
@@ -689,8 +686,7 @@ async def cih_compare(
     ais: list[str] | None = None,
     timeout: int = 90,
 ) -> dict[str, Any]:
-    """
-    AI 응답 비교 - 동일 질문에 대한 여러 AI 응답을 나란히 비교
+    """AI 응답 비교 - 동일 질문에 대한 여러 AI 응답을 나란히 비교
 
     Args:
         prompt: 비교할 질문
@@ -698,8 +694,7 @@ async def cih_compare(
         timeout: 타임아웃 (초)
 
     Returns:
-        각 AI 응답과 비교 분석
-    """
+        각 AI 응답과 비교 분석"""
     if ais is None:
         ais = ["claude", "codex", "gemini"]
     result = await cih_discuss(prompt, ais=ais, include_synthesis=True, timeout=timeout)  # type: ignore[operator]
@@ -710,12 +705,10 @@ async def cih_compare(
 
 @mcp.tool()
 async def cih_status() -> dict[str, Any]:
-    """
-    CLI-CIH 상태 확인 - 사용 가능한 AI와 연결 상태
+    """CLI-CIH 상태 확인 - 사용 가능한 AI와 연결 상태
 
     Returns:
-        각 AI의 가용성 정보 (표준 응답 형식)
-    """
+        각 AI의 가용성 정보 (표준 응답 형식)"""
     start = time.time()
     status = {}
 
@@ -789,8 +782,7 @@ async def cih_smart(
     task_type: Literal["code", "debug", "design", "research", "explain", "general"] | None = None,
     timeout: int = 90,
 ) -> dict[str, Any]:
-    """
-    스마트 라우팅 - 작업 유형에 따라 최적 AI 자동 선택
+    """스마트 라우팅 - 작업 유형에 따라 최적 AI 자동 선택
 
     Args:
         prompt: 사용자 질문
@@ -798,8 +790,7 @@ async def cih_smart(
         timeout: 타임아웃 (초)
 
     Returns:
-        선택된 AI의 응답 (표준 응답 형식)
-    """
+        선택된 AI의 응답 (표준 응답 형식)"""
     start = time.time()
 
     try:
@@ -866,16 +857,14 @@ async def cih_smart(
 
 @mcp.tool()
 async def cih_history(limit: int = 10, search: str | None = None) -> dict[str, Any]:
-    """
-    대화 히스토리 조회
+    """대화 히스토리 조회
 
     Args:
         limit: 최대 결과 수 (기본: 10)
         search: 검색어 (선택)
 
     Returns:
-        최근 대화 목록
-    """
+        최근 대화 목록"""
     start = time.time()
 
     try:
@@ -911,16 +900,14 @@ async def cih_history(limit: int = 10, search: str | None = None) -> dict[str, A
 
 @mcp.tool()
 async def cih_history_detail(session_id: str, format: str = "json") -> dict[str, Any]:
-    """
-    대화 히스토리 상세 조회
+    """대화 히스토리 상세 조회
 
     Args:
         session_id: 세션 ID
         format: 출력 형식 (json/md/txt)
 
     Returns:
-        세션 상세 정보
-    """
+        세션 상세 정보"""
     start = time.time()
 
     try:
@@ -969,12 +956,10 @@ async def cih_history_detail(session_id: str, format: str = "json") -> dict[str,
 
 @mcp.tool()
 async def cih_models() -> dict[str, Any]:
-    """
-    사용 가능한 AI 모델 목록 (상세)
+    """사용 가능한 AI 모델 목록 (상세)
 
     Returns:
-        각 AI 서비스의 모델 정보
-    """
+        각 AI 서비스의 모델 정보"""
     start = time.time()
 
     try:
@@ -1031,12 +1016,10 @@ async def cih_models() -> dict[str, Any]:
 
 @mcp.tool()
 async def cih_stats() -> dict[str, Any]:
-    """
-    CLI-CIH 사용 통계
+    """CLI-CIH 사용 통계
 
     Returns:
-        히스토리 통계 및 AI 사용량
-    """
+        히스토리 통계 및 AI 사용량"""
     start = time.time()
 
     try:
@@ -1060,12 +1043,10 @@ async def cih_stats() -> dict[str, Any]:
 
 @mcp.tool()
 async def cih_gateway_status() -> dict[str, Any]:
-    """
-    Docker MCP Gateway 상태 확인 (상세)
+    """Docker MCP Gateway 상태 확인 (상세)
 
     Returns:
-        Gateway 연결 상태, 서버 목록, 도구 수
-    """
+        Gateway 연결 상태, 서버 목록, 도구 수"""
     start = time.time()
 
     if not DOCKER_GATEWAY_ENABLED:
@@ -1116,16 +1097,14 @@ async def cih_gateway_status() -> dict[str, Any]:
 
 @mcp.tool()
 async def cih_gateway_find(query: str, limit: int = 10) -> dict[str, Any]:
-    """
-    Docker Gateway에서 MCP 서버 검색
+    """Docker Gateway에서 MCP 서버 검색
 
     Args:
         query: 검색어 (서버 이름, 설명)
         limit: 최대 결과 수
 
     Returns:
-        검색된 서버 목록
-    """
+        검색된 서버 목록"""
     start = time.time()
 
     if not DOCKER_GATEWAY_ENABLED:
@@ -1148,15 +1127,13 @@ async def cih_gateway_find(query: str, limit: int = 10) -> dict[str, Any]:
 
 @mcp.tool()
 async def cih_gateway_tools(server: str) -> dict[str, Any]:
-    """
-    Docker Gateway 서버의 도구 목록 조회
+    """Docker Gateway 서버의 도구 목록 조회
 
     Args:
         server: MCP 서버 이름
 
     Returns:
-        해당 서버의 사용 가능한 도구 목록
-    """
+        해당 서버의 사용 가능한 도구 목록"""
     start = time.time()
 
     if not DOCKER_GATEWAY_ENABLED:
@@ -1186,8 +1163,7 @@ async def cih_gateway_exec(
     arguments: dict[str, Any] | None = None,
     timeout: float = 60.0,
 ) -> dict[str, Any]:
-    """
-    Docker Gateway를 통해 MCP 도구 실행
+    """Docker Gateway를 통해 MCP 도구 실행
 
     Args:
         server: MCP 서버 이름
@@ -1196,8 +1172,7 @@ async def cih_gateway_exec(
         timeout: 타임아웃 (초)
 
     Returns:
-        도구 실행 결과
-    """
+        도구 실행 결과"""
     start = time.time()
 
     if not DOCKER_GATEWAY_ENABLED:
@@ -1225,16 +1200,14 @@ async def cih_gateway_multi_exec(
     calls: list[dict[str, Any]],
     timeout: float = 60.0,
 ) -> dict[str, Any]:
-    """
-    Docker Gateway를 통해 여러 MCP 도구 병렬 실행
+    """Docker Gateway를 통해 여러 MCP 도구 병렬 실행
 
     Args:
         calls: 호출 목록 [{"server": str, "tool": str, "arguments": dict}, ...]
         timeout: 각 호출 타임아웃 (초)
 
     Returns:
-        모든 도구 실행 결과
-    """
+        모든 도구 실행 결과"""
     start = time.time()
 
     if not DOCKER_GATEWAY_ENABLED:

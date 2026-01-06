@@ -61,3 +61,6 @@ Thumbs.db
 *.db
 *.sqlite
 *.log
+
+# CLAUDE.md symlink (auto-generated from AGENTS.md)
+# CLAUDE.md  # Uncomment if you want to ignore the symlink
