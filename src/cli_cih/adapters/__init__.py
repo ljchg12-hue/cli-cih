@@ -15,7 +15,9 @@ from cli_cih.adapters.base import (
 )
 from cli_cih.adapters.claude import ClaudeAdapter
 from cli_cih.adapters.codex import CodexAdapter
+from cli_cih.adapters.copilot import CopilotAdapter
 from cli_cih.adapters.gemini import GeminiAdapter
+from cli_cih.adapters.glm import GLMAdapter
 from cli_cih.adapters.ollama import OllamaAdapter
 
 __all__ = [
@@ -32,7 +34,9 @@ __all__ = [
     # Adapters
     "ClaudeAdapter",
     "CodexAdapter",
+    "CopilotAdapter",
     "GeminiAdapter",
+    "GLMAdapter",
     "OllamaAdapter",
     # Functions
     "get_adapter",
@@ -44,7 +48,9 @@ __all__ = [
 ADAPTERS: dict[str, type[AIAdapter]] = {
     "claude": ClaudeAdapter,
     "codex": CodexAdapter,
+    "copilot": CopilotAdapter,
     "gemini": GeminiAdapter,
+    "glm": GLMAdapter,
     "ollama": OllamaAdapter,
 }
 

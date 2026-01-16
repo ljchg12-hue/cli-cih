@@ -47,6 +47,15 @@ ais:
     timeout: 120
     max_tokens: 4096
 
+  glm:
+    name: glm
+    enabled: true
+    color: bright_cyan
+    endpoint: https://api.z.ai/api/openai/v1
+    model: glm-4.7
+    timeout: 120
+    max_tokens: 4096
+
 # UI Settings
 show_thinking: true
 show_timestamps: false

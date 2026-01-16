@@ -1,5 +1,14 @@
 # CLAUDE.md - CLI Intelligence Hub
-<!-- 전역: ~/.claude/CLAUDE.md | 루트: ~/CLAUDE.md -->
+<!-- 전역: ~/.claude/CLAUDE.md v3.2 | 루트: ~/CLAUDE.md -->
+
+## Codex CLI (Global)
+
+- Config: `~/.codex/config.toml`
+- Skills: `~/.codex/skills`
+- Inherits: `~/AGENTS.md`
+
+> **전역 동기화**: `~/.claude/CLAUDE.md` Protocol 섹션 따름
+> - **Question[1] 필수 시작** + ⚡스킵 항상 제공, 사용자 선택 우선
 
 ## 🤖 권장 에이전트
 
@@ -35,7 +44,7 @@ tshark -r capture.pcap -Y "http"
 
 ## 🤖 AI CLI 설정
 
-### Cloud CLI 4개 (항상 병렬)
+### Cloud CLI 5개 (항상 병렬)
 ```bash
 # 1. Claude (현재 세션)
 
@@ -47,6 +56,9 @@ codex exec --skip-git-repo-check "prompt"
 
 # 4. Copilot
 copilot -p "prompt"
+
+# 5. GLM (via cli-cih)
+cih glm "prompt"
 ```
 
 ### Ollama Cloud 4개 (S-Tier 우선)
