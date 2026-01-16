@@ -14,11 +14,13 @@ import json
 import logging
 import os
 import shutil
+import socket
 import time
 from dataclasses import dataclass
 from typing import Any, Literal
 
 import httpx
+import typer
 from fastmcp import FastMCP
 
 from cli_cih.mcp.exceptions import (
@@ -94,7 +96,7 @@ ALLOWED_COMMANDS: dict[str, set[str]] = {
     "claude": {"-p", "--print", "--version", "--help"},
     "codex": {"exec", "--skip-git-repo-check", "--version", "--help"},
     "gemini": {"-p", "--version", "--help"},
-    "copilot": {"explain", "suggest", "--version", "--help"},
+    "copilot": {"-p", "--allow-all", "--version", "--help"},
 }
 
 
@@ -449,7 +451,7 @@ async def cih_quick(prompt: str, ai: str = "claude", timeout: int = 60) -> dict[
             result = await call_ollama(prompt)
         elif ai == "copilot":
             result = await run_cli_async(
-                [COPILOT_CMD, "explain", prompt], timeout=timeout
+                [COPILOT_CMD, "-p", prompt, "--allow-all"], timeout=timeout
             )
         else:
             raise MCPValidationError(f"Unknown AI: {ai}")
@@ -617,7 +619,7 @@ async def cih_discuss(
                 return ai_name, await call_ollama(prompt)
 
             elif ai_name == "copilot":
-                result = await run_cli_async([COPILOT_CMD, "explain", prompt], timeout=timeout)
+                result = await run_cli_async([COPILOT_CMD, "-p", prompt, "--allow-all"], timeout=timeout)
                 if result["success"]:
                     return ai_name, {"response": result["stdout"], "success": True}
                 return ai_name, {"error": result.get("error", "Unknown"), "success": False}
@@ -1262,9 +1264,57 @@ async def cih_gateway_multi_exec(
 # ═══════════════════════════════════════════════
 
 
-def run_server() -> None:
+def run_server_main(
+    transport: str = typer.Option("stdio", help="MCP transport: 'stdio' or 'tcp'"),
+    host: str = typer.Option("127.0.0.1", help="Host for TCP transport"),
+    port: int = typer.Option(8888, help="Port for TCP transport"),
+    max_retries: int = typer.Option(10, help="Max retries for TCP port binding"),
+):
     """MCP 서버 실행."""
-    mcp.run(transport="stdio")
+    if transport == "stdio":
+        logger.info("Starting MCP server with stdio transport")
+        mcp.run(transport="stdio")
+    elif transport == "tcp":
+        server_started = False
+        for i in range(max_retries):
+            current_port = port + i
+            try:
+                logger.info(f"Attempting to start TCP server on {host}:{current_port}")
+                # This is a blocking call
+                mcp.run(transport="tcp", host=host, port=current_port)
+                # If run() returns, it means the server stopped.
+                server_started = True
+                logger.info(f"Server on {host}:{current_port} stopped.")
+                break
+            except (OSError, socket.error) as e:
+                # The fastmcp library might not raise a specific socket error,
+                # but a generic OSError. Checking the error string is a robust way.
+                if "address already in use" in str(e).lower():
+                    logger.warning(
+                        f"Port {current_port} is already in use. Trying next port."
+                    )
+                    continue
+                else:
+                    logger.error(f"Failed to start server on {host}:{current_port}: {e}")
+                    raise  # Re-raise other errors
+            except Exception as e:
+                logger.error(f"An unexpected error occurred: {e}")
+                raise
+
+        if not server_started:
+            logger.error(
+                f"Could not find an available port in range {port}-{port + max_retries - 1}"
+            )
+            # Exit with an error code if the server could not be started.
+            raise SystemExit(1)
+    else:
+        logger.error(f"Invalid transport type: {transport}. Use 'stdio' or 'tcp'.")
+        raise SystemExit(1)
+
+
+def run_server():
+    """Typer app for running the server."""
+    typer.run(run_server_main)
 
 
 if __name__ == "__main__":
