@@ -81,7 +81,7 @@ Display format:
 #   → MCP ollama 병렬 실행
 
 # Tier3 Local 2~4개 (Sequential - Optional)
-#   llama3.3, deepseek-r1:70b, exaone4.0:32b(한국어)
+#   llama3.3, deepseek-r1:70b, ingu627/exaone4.0:32b(한국어)
 #   → VRAM 사용하므로 순차 실행
 
 # 코드 Task 추가: qwen3-coder:480b-cloud, codellama:70b
